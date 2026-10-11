@@ -8,6 +8,8 @@ Turns, model steps, cumulative tokens, context usage, and cost **in OpenCode V2'
 
 Inspired by [OpenCode Vitals](https://github.com/moutazideal/opencode-vitals) and its idea of keeping session metrics beside the composer. This project brings that idea to the terminal with usage counts, not streaming tokens per second.
 
+![OpenCode terminal prompt footer showing turns, model steps, total tokens, and context usage](screenshot.png)
+
 ```text
 ~/code/project                  8 turns · 42 steps · 320K total · 24K (19%) · $0.43
 ```
