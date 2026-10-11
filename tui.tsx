@@ -5,7 +5,7 @@ import { footerSummary, formatCost, parseOptions } from "./src/format.ts"
 import { calculateVitals, mergeMessages, projectMessages } from "./src/metrics.ts"
 import { HistoryStore } from "./src/store.ts"
 
-const updates = new Set([
+const updates = [
   "session.inbox.delivered",
   "session.step.started",
   "session.step.ended",
@@ -14,7 +14,7 @@ const updates = new Set([
   "session.execution.failed",
   "session.execution.interrupted",
   "session.compaction.ended",
-])
+] as const
 
 export default Plugin.define({
   id: "opencode-vitals-terminal",
@@ -108,23 +108,13 @@ export default Plugin.define({
       ],
     }))
 
-    const stopEvents = context.data.listen(({ details }) => {
-      if (details.type === "server.connected") {
-        history.reconnect()
-        return
-      }
-      if (details.type === "session.deleted") {
-        history.forget(details.data.sessionID)
-        return
-      }
-      if (details.type === "session.revert.committed") {
-        queueMicrotask(() => history.truncate(details.data.sessionID, details.data.to))
-        return
-      }
-      if (!updates.has(details.type) || !("data" in details) || !("sessionID" in details.data)) return
-      const sessionID = details.data.sessionID
-      if (typeof sessionID === "string") queueMicrotask(() => history.update(sessionID))
-    })
+    const stopEvents = [
+      context.data.on("server.connected", () => history.reconnect()),
+      context.data.on("session.deleted", (event) => history.forget(event.data.sessionID)),
+      context.data.on("session.revert.committed", (event) => queueMicrotask(() => history.truncate(event.data.sessionID, event.data.to))),
+      ...updates.map((type) => context.data.on(type, (event) =>
+        queueMicrotask(() => history.update(event.data.sessionID)))),
+    ]
 
     const stopFooter = context.ui.slot({
       // Disable only opencode.prompt.footer in cli.json. Appending here keeps
@@ -206,7 +196,7 @@ export default Plugin.define({
     })
 
     return () => {
-      stopEvents()
+      for (const stop of stopEvents) stop()
       stopFooter()
       history.dispose()
     }
