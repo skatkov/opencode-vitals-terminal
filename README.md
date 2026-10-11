@@ -1,6 +1,12 @@
-# opencode-vitals-terminal
+# OpenCode Vitals Terminal
 
-Turns, model steps, and tokens **in OpenCode V2's existing prompt-footer usage line**. No desktop renderer injection, server hooks, telemetry, extra model requests, or separate dashboard.
+**Session usage, right below your prompt.**
+
+Turns, model steps, cumulative tokens, context usage, and cost **in OpenCode V2's existing terminal prompt footer**. No separate dashboard, desktop renderer injection, server hooks, telemetry, or extra model requests.
+
+**For the full-screen terminal client**, not Desktop or `opencode mini`.
+
+Inspired by [OpenCode Vitals](https://github.com/moutazideal/opencode-vitals) and its idea of keeping session metrics beside the composer. This project brings that idea to the terminal with usage counts, not streaming tokens per second.
 
 ```text
 ~/code/project                  8 turns · 42 steps · 320K total · 24K (19%) · $0.43
@@ -14,42 +20,62 @@ The line automatically abbreviates on smaller terminals:
 
 Click the summary or run `/vitals` for exact counts and an input/output/reasoning/cache breakdown. `/vitals-refresh` rereads the session history if needed.
 
-## Enable locally
+## What you get
 
-Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26. This is for the full-screen terminal client, not Desktop or `opencode mini`.
+| Feature | What it does |
+| --- | --- |
+| **Session counts** | Delivered user turns and primary model steps for the session you are viewing, including work in progress. |
+| **Usage at a glance** | Cumulative provider-reported tokens beside the original context estimate and optional cost display. |
+| **Details on demand** | Click the summary or run `/vitals` for exact counts and a token breakdown. |
+| **History-aware totals** | Read full history on resume and reconnect, and exclude reverted messages after undo. Incomplete totals are marked with `~`. |
+| **A footer that fits** | Abbreviate on narrow terminals while retaining the host's spinner, working directory, and editor-file display. |
 
-Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CONFIG_HOME/opencode/cli.json`):
+## Install from source
+
+Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26. Use **Node 22.6 or newer** and npm to install the checkout's dependencies; OpenCode supplies the runtime that loads the plugin.
+
+```sh
+git clone https://github.com/skatkov/opencode-vitals-terminal.git
+cd opencode-vitals-terminal
+npm install
+```
+
+Then merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CONFIG_HOME/opencode/cli.json`). Replace `/absolute/path/opencode-vitals-terminal` with the absolute path to your checkout:
 
 ```json
 {
   "$schema": "https://opencode.ai/v2/cli.json",
   "plugins": [
     "-opencode.prompt.footer",
-    "/home/sk/Code/opencode-vitals-terminal"
+    "/absolute/path/opencode-vitals-terminal"
   ]
 }
 ```
 
-**Keep your other settings and plugin entries.** `cli.example.json` contains a complete example with options; do not copy it over an existing config.
+**Keep your other settings and plugin entries.** `cli.example.json` contains an example with options; adjust its checkout path and do not copy it over an existing config.
 
 The first entry disables only the built-in footer contribution that contains the original token/cost line. Without it, both summaries appear. Our contribution uses the same `prompt.footer` slot, rather than replacing the whole footer: the host's spinner, working directory, interrupt status, and editor-file display remain intact. Shell-mode hints, command/agent shortcuts when space permits, and running-subagent/shell indicators are retained.
 
-For a one-off preview without changing your configuration:
+Restart or reload the terminal client to load the plugin.
+
+### Preview without changing configuration
 
 ```sh
-OPENCODE_CLI_CONFIG_CONTENT='{"plugins":["-opencode.prompt.footer","/home/sk/Code/opencode-vitals-terminal"]}' opencode
+OPENCODE_CLI_CONFIG_CONTENT='{"plugins":["-opencode.prompt.footer","/absolute/path/opencode-vitals-terminal"]}' opencode
 ```
 
 The environment override replaces the configured plugin array for that process; include any other terminal plugins you want in that preview.
 
 ## Options
 
+Use the same checkout path in the object form when passing options:
+
 ```json
 {
   "plugins": [
     "-opencode.prompt.footer",
     {
-      "package": "/home/sk/Code/opencode-vitals-terminal",
+      "package": "/absolute/path/opencode-vitals-terminal",
       "options": {
         "tokens": "both",
         "cost": true
@@ -78,7 +104,13 @@ Full history is paginated independently of the TUI's recent-message cache, so re
 
 On narrow terminals the labels abbreviate first, then cost/context percentage are omitted. On very narrow terminals the context field may also be omitted; the detailed `/vitals` view remains available.
 
-Only lightweight usage metadata is kept in client memory. The plugin does not persist or log prompts, responses, file attachments, or tool output. Disabling/reloading it unsubscribes events and aborts its pending history reads. It also works with a remote OpenCode server through the TUI's existing authenticated client.
+## Privacy
+
+Only lightweight usage metadata is kept in client memory. The plugin does not persist or log prompts, responses, file attachments, or tool output. There is no telemetry or separate analytics service. History comes from the connected OpenCode server, including remote servers, through the TUI's existing authenticated client. Disabling/reloading the plugin unsubscribes events and aborts its pending history reads.
+
+## Remove
+
+Remove this plugin's entry and `-opencode.prompt.footer` from `cli.json`, then restart or reload the terminal client. Removing the disabling entry restores OpenCode's built-in footer contribution. Keep your other plugin entries and settings.
 
 ## Development
 
@@ -95,3 +127,7 @@ The plugin was also smoke-tested in the actual OpenCode 2.0.26 TUI at 160, 80, a
 The development dependency override keeps `seroval` on a patched release. On Node versions older than OpenTUI's declared runtime minimum, npm may print an engine warning; OpenCode itself provides the runtime used to load the plugin.
 
 API references: [CLI plugins](https://opencode.ai/v2/docs/build/plugins/cli/) · [CLI plugin configuration](https://opencode.ai/v2/docs/cli/plugins/).
+
+## License
+
+MIT. See [LICENSE](LICENSE).
