@@ -1,6 +1,6 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, createMemo, createSignal, Match, Show, Switch, untrack } from "solid-js"
+import { createEffect, createMemo, Match, Show, Switch, untrack } from "solid-js"
 import { footerSummary, formatCost, parseOptions } from "./src/format.ts"
 import { calculateVitals, mergeMessages, projectMessages } from "./src/metrics.ts"
 import { HistoryStore } from "./src/store.ts"
@@ -20,7 +20,6 @@ export default Plugin.define({
   id: "opencode-vitals-terminal",
   setup(context) {
     const options = parseOptions(context.options)
-    const [revision, setRevision] = createSignal(0)
     const cached = (sessionID: string) => {
       const pending = new Set(context.data.session.pending.list(sessionID).map((item) => item.id))
       return projectMessages(context.data.session.message.list(sessionID).filter((message) => !pending.has(message.id)))
@@ -28,16 +27,11 @@ export default Plugin.define({
     const history = new HistoryStore(
       (input, requestOptions) => context.client.message.list(input, requestOptions),
       cached,
-      () => setRevision((value) => value + 1),
     )
-    const state = (sessionID: string) => {
-      revision()
-      return history.get(sessionID)
-    }
     const vitals = (sessionID: string) => {
       const session = context.data.session.get(sessionID)
       return calculateVitals(
-        mergeMessages(state(sessionID)?.messages ?? [], cached(sessionID)),
+        mergeMessages(history.get(sessionID)?.messages ?? [], cached(sessionID)),
         context.data.location.model.list(session?.location),
         session?.revert?.messageID,
       )
@@ -52,11 +46,11 @@ export default Plugin.define({
         return (
           <box gap={1} padding={1}>
             <text fg={context.theme.text.base}><b>Session vitals</b></text>
-            <Show when={state(sessionID)?.loading}>
+            <Show when={history.get(sessionID)?.loading}>
               <text fg={context.theme.text.muted}>Reading full session history…</text>
             </Show>
-            <Show when={state(sessionID)?.error}>
-              <text fg={context.theme.text.muted}>Partial totals: {state(sessionID)?.error}</text>
+            <Show when={history.get(sessionID)?.error}>
+              <text fg={context.theme.text.muted}>Partial totals: {history.get(sessionID)?.error}</text>
             </Show>
             <text fg={context.theme.text.base}>
               {number(metrics().turns)} turns · {number(metrics().steps)} steps ({number(metrics().completedSteps)} completed)
@@ -162,7 +156,7 @@ export default Plugin.define({
           if (!props.sessionID) return ""
           return footerSummary(vitals(props.sessionID), {
             width: Math.max(0, available() - (live() ? live().length + 3 : 0)),
-            complete: state(props.sessionID)?.complete === true,
+            complete: history.get(props.sessionID)?.complete === true,
             cost: context.data.session.cost(props.sessionID),
             options,
           })
