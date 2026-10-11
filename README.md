@@ -1,0 +1,97 @@
+# opencode-vitals-terminal
+
+Turns, model steps, and tokens **in OpenCode V2's existing prompt-footer usage line**. No desktop renderer injection, server hooks, telemetry, extra model requests, or separate dashboard.
+
+```text
+~/code/project                  8 turns · 42 steps · 320K total · 24K (19%) · $0.43
+```
+
+The line automatically abbreviates on smaller terminals:
+
+```text
+8t · 42s · 320K total · 24K
+```
+
+Click the summary or run `/vitals` for exact counts and an input/output/reasoning/cache breakdown. `/vitals-refresh` rereads the session history if needed.
+
+## Enable locally
+
+Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26. This is for the full-screen terminal client, not Desktop or `opencode mini`.
+
+Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CONFIG_HOME/opencode/cli.json`):
+
+```json
+{
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "plugins": [
+    "-opencode.prompt.footer",
+    "/home/sk/Code/opencode-vitals-terminal"
+  ]
+}
+```
+
+**Keep your other settings and plugin entries.** `cli.example.json` contains a complete example with options; do not copy it over an existing config.
+
+The first entry disables only the built-in footer contribution that contains the original token/cost line. Without it, both summaries appear. Our contribution uses the same `prompt.footer` slot, rather than replacing the whole footer: the host's spinner, working directory, interrupt status, and editor-file display remain intact. Shell-mode hints, command/agent shortcuts when space permits, and running-subagent/shell indicators are retained.
+
+For a one-off preview without changing your configuration:
+
+```sh
+OPENCODE_CLI_CONFIG_CONTENT='{"plugins":["-opencode.prompt.footer","/home/sk/Code/opencode-vitals-terminal"]}' opencode
+```
+
+The environment override replaces the configured plugin array for that process; include any other terminal plugins you want in that preview.
+
+## Options
+
+```json
+{
+  "plugins": [
+    "-opencode.prompt.footer",
+    {
+      "package": "/home/sk/Code/opencode-vitals-terminal",
+      "options": {
+        "tokens": "both",
+        "cost": true
+      }
+    }
+  ]
+}
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `tokens` | `"both"` | `"both"`: total tokens and current context. `"context"`: the original token-count semantics, plus turns/steps. `"total"`: cumulative tokens only. |
+| `cost` | `true` | Retain OpenCode's cost display when space permits. |
+
+## What the numbers mean
+
+- **Turns:** delivered user messages in this session's timeline. Includes the current turn. Steering messages count as separate user turns; this is **not** a count of completed assistant responses. Queued/pending messages, synthetic messages, and shell commands do not count.
+- **Steps:** distinct primary assistant/model-call messages, including a call in progress or a failed call. Multiple tool calls in one response are one step. Provider retries reusing the same assistant message ID do not inflate the counter. Title generation and compaction are not primary steps.
+- **Total:** cumulative provider-reported token usage: input + output + reasoning + cache-read + cache-write across primary model steps. Repeated context/cache tokens are counted per request, just as in OpenCode's usage accounting. This is neither unique transcript size nor billed cost. Usage updates when the provider finishes a step; missing usage is not estimated. Auxiliary title/compaction/generate usage is excluded.
+- **Context:** the unlabeled token count after the cumulative total. This is the original footer's estimate: the latest primary step's token usage since the last completed compaction, with its model's context-window percentage when known. It is not the cumulative token total.
+- **Cost:** OpenCode's existing session-cost value, which can include auxiliary work and descendants. It is not recalculated from the primary-step token total.
+
+Turn, step, and token counters are **for the session you are viewing**. Subagent sessions have their own counters; the running-subagent indicator is still displayed.
+
+Full history is paginated independently of the TUI's recent-message cache, so resuming a long session does not reset its counters. Until history finishes loading, or if it cannot be read, incomplete totals carry a `~` prefix. Context remains available from the recent-message cache. Reconnects reread history, and staged/committed undo excludes the reverted part of the timeline. Removed history is not a lifetime-spend ledger.
+
+On narrow terminals the labels abbreviate first, then cost/context percentage are omitted. On very narrow terminals the context field may also be omitted; the detailed `/vitals` view remains available.
+
+Only lightweight usage metadata is kept in client memory. The plugin does not persist or log prompts, responses, file attachments, or tool output. Disabling/reloading it unsubscribes events and aborts its pending history reads. It also works with a remote OpenCode server through the TUI's existing authenticated client.
+
+## Development
+
+```sh
+npm install
+npm run check
+npm test
+```
+
+The host loads the TypeScript/TSX entrypoints directly; no build is required. OpenTUI/Solid are peer dependencies supplied by the host. Local tests exercise accounting, pagination, deduplication, formatting, undo boundaries, concurrent reads, and cleanup without making model requests.
+
+The plugin was also smoke-tested in the actual OpenCode 2.0.26 TUI at 160, 80, and 44 columns, including the `/vitals` dialog and live counter updates. Loading it did not require changing global configuration.
+
+The development dependency override keeps `seroval` on a patched release. On Node versions older than OpenTUI's declared runtime minimum, npm may print an engine warning; OpenCode itself provides the runtime used to load the plugin.
+
+API references: [CLI plugins](https://opencode.ai/v2/docs/build/plugins/cli/) · [CLI plugin configuration](https://opencode.ai/v2/docs/cli/plugins/).

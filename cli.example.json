@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "plugins": [
+    "-opencode.prompt.footer",
+    {
+      "package": "/home/sk/Code/opencode-vitals-terminal",
+      "options": {
+        "tokens": "both",
+        "cost": true
+      }
+    }
+  ]
+}
