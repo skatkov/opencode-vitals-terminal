@@ -67,6 +67,7 @@ Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CO
   "$schema": "https://opencode.ai/v2/cli.json",
   "plugins": [
     "-opencode.prompt.footer",
+    "-opencode.sidebar.context",
     "opencode-vitals-terminal"
   ]
 }
@@ -92,7 +93,7 @@ npm ci
 
 For **mise** users, `mise.toml` pins a compatible Node version for this checkout. Run `mise install` before `npm ci`. If mise is not activated in your shell, use `mise exec -- npm ci` instead.
 
-In the configuration above, replace `opencode-vitals-terminal` with the absolute path to your checkout, such as `/absolute/path/opencode-vitals-terminal`. Keep the `-opencode.prompt.footer` entry, then restart or reload the terminal client.
+In the configuration above, replace `opencode-vitals-terminal` with the absolute path to your checkout, such as `/absolute/path/opencode-vitals-terminal`. Keep both `-opencode.prompt.footer` and `-opencode.sidebar.context` entries, then restart or reload the terminal client.
 
 ### Preview without changing configuration
 
