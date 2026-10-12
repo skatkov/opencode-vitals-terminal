@@ -3,7 +3,7 @@
   "plugins": [
     "-opencode.prompt.footer",
     {
-      "package": "/home/sk/Code/opencode-vitals-terminal",
+      "package": "opencode-vitals-terminal",
       "options": {
         "tokens": "both",
         "cost": true

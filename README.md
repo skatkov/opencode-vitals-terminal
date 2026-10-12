@@ -32,35 +32,41 @@ Click the summary or run `/vitals` for exact counts and an input/output/reasonin
 | **History-aware totals** | Read full history on resume and reconnect, and exclude reverted messages after undo. Incomplete totals are marked with `~`. |
 | **A footer that fits** | Abbreviate on narrow terminals while retaining the host's spinner, working directory, and editor-file display. |
 
-## Install from source
+## Install
 
-Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26. Use **Node 26.4.0 or newer** and npm to install the checkout's dependencies, matching OpenTUI's Node requirement; OpenCode supplies the runtime that loads the plugin.
+Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26. OpenCode installs the npm package and supplies the runtime that loads the plugin; no separate `npm install` is needed.
 
-```sh
-git clone https://github.com/skatkov/opencode-vitals-terminal.git
-cd opencode-vitals-terminal
-npm install
-```
-
-For **mise** users, `mise.toml` pins a compatible Node version for this checkout. Run `mise install` before `npm install`. If mise is not activated in your shell, use `mise exec -- npm install` instead.
-
-Then merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CONFIG_HOME/opencode/cli.json`). Replace `/absolute/path/opencode-vitals-terminal` with the absolute path to your checkout:
+Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CONFIG_HOME/opencode/cli.json`):
 
 ```json
 {
   "$schema": "https://opencode.ai/v2/cli.json",
   "plugins": [
     "-opencode.prompt.footer",
-    "/absolute/path/opencode-vitals-terminal"
+    "opencode-vitals-terminal"
   ]
 }
 ```
 
-**Keep your other settings and plugin entries.** `cli.example.json` contains an example with options; adjust its checkout path and do not copy it over an existing config.
+**Keep your other settings and plugin entries.** [`cli.example.json`](cli.example.json) contains an example with options; do not copy it over an existing config. To pin a release, use `opencode-vitals-terminal@0.1.0` instead of the unversioned package name.
 
 The first entry disables only the built-in footer contribution that contains the original token/cost line. Without it, both summaries appear. Our contribution uses the same `prompt.footer` slot, rather than replacing the whole footer: the host's spinner, working directory, interrupt status, and editor-file display remain intact. Shell-mode hints, command/agent shortcuts when space permits, and running-subagent/shell indicators are retained.
 
 Restart or reload the terminal client to load the plugin.
+
+### Install from source
+
+Use **Node 26.4.0 or newer** and npm for the checkout's dependencies and development checks, matching OpenTUI's declared Node runtime minimum:
+
+```sh
+git clone https://github.com/skatkov/opencode-vitals-terminal.git
+cd opencode-vitals-terminal
+npm ci
+```
+
+For **mise** users, `mise.toml` pins a compatible Node version for this checkout. Run `mise install` before `npm ci`. If mise is not activated in your shell, use `mise exec -- npm ci` instead.
+
+In the configuration above, replace `opencode-vitals-terminal` with the absolute path to your checkout, such as `/absolute/path/opencode-vitals-terminal`. Keep the `-opencode.prompt.footer` entry, then restart or reload the terminal client.
 
 ### Preview without changing configuration
 
@@ -72,14 +78,14 @@ The environment override replaces the configured plugin array for that process; 
 
 ## Options
 
-Use the same checkout path in the object form when passing options:
+Use the package name (or your checkout's absolute path) in the object form when passing options:
 
 ```json
 {
   "plugins": [
     "-opencode.prompt.footer",
     {
-      "package": "/absolute/path/opencode-vitals-terminal",
+      "package": "opencode-vitals-terminal",
       "options": {
         "tokens": "both",
         "cost": true
@@ -119,20 +125,38 @@ Remove this plugin's entry and `-opencode.prompt.footer` from `cli.json`, then r
 ## Development
 
 ```sh
-npm install
+npm ci
 npm run check
 npm test
+npm pack --dry-run
 ```
 
 The host loads the TypeScript/TSX entrypoints directly; no build is required. OpenTUI/Solid are peer dependencies supplied by the host. Local tests exercise accounting, pagination, deduplication, formatting, undo boundaries, concurrent reads, and cleanup without making model requests.
 
 The plugin was also smoke-tested in the actual OpenCode 2.0.26 TUI at 160, 80, and 44 columns, including the `/vitals` dialog and live counter updates. Loading it did not require changing global configuration.
 
-The development dependency override keeps `seroval` on a patched release. If npm reports `EBADENGINE`, check `node --version` and upgrade to Node 26.4.0 or newer (or run `mise install` and use `mise exec -- npm install`).
+The development dependency override keeps `seroval` on a patched release. If npm reports `EBADENGINE`, check `node --version` and upgrade to Node 26.4.0 or newer (or run `mise install` and use `mise exec -- npm ci`).
 
 For npm versions with install-script approvals, `allowScripts` explicitly denies the optional `msgpackr-extract` native build script. MessagePack decoding still works without native acceleration, using the JavaScript fallback. This avoids unreviewed-script warnings without enabling dependency install scripts broadly.
 
+CI runs the same install, type check, tests, and package preview on pushes and pull requests, using Node 26. Publishing is manual, as in `opencode-lightpanda`.
+
 API references: [CLI plugins](https://opencode.ai/v2/docs/build/plugins/cli/) · [CLI plugin configuration](https://opencode.ai/v2/docs/cli/plugins/).
+
+## Publishing
+
+The initial release is `0.1.0`. From an npm account with permission to publish `opencode-vitals-terminal`:
+
+```sh
+npm ci
+npm login
+npm publish --dry-run
+npm publish
+```
+
+`prepublishOnly` runs the type check and tests for both publish commands. The package ships the TypeScript/TSX entrypoints and runtime source directly, with the README, screenshot, example configuration, and license; no compilation step is needed. `publishConfig` targets the public npm registry.
+
+For subsequent releases, bump the version with `npm version patch` (or `minor`/`major`) and commit and push the release changes and tag before publishing. npm will not overwrite an already published version.
 
 ## License
 
