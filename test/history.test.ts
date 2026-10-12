@@ -42,3 +42,22 @@ test("cancelled reads never start another request", async () => {
   }, "session-1", controller.signal), { name: "AbortError" })
   assert.equal(calls, 1)
 })
+
+test("an already cancelled history read does not contact the server", async () => {
+  const controller = new AbortController()
+  controller.abort()
+  let calls = 0
+  await assert.rejects(readHistory(async () => {
+    calls++
+    return { data: [], cursor: {} }
+  }, "session-1", controller.signal), { name: "AbortError" })
+  assert.equal(calls, 0)
+})
+
+test("cancellation while reading the last page rejects instead of publishing its messages", async () => {
+  const controller = new AbortController()
+  await assert.rejects(readHistory(async () => {
+    controller.abort()
+    return { data: [user()], cursor: {} }
+  }, "session-1", controller.signal), { name: "AbortError" })
+})

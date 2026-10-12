@@ -9,10 +9,13 @@ export default {
     nodeArgs: ["--conditions=browser", "--experimental-strip-types", "--test-reporter=tap"],
   },
   coverageAnalysis: "perTest",
+  checkers: ["typescript"],
+  tsconfigFile: "tsconfig.json",
+  typescriptChecker: { prioritizePerformanceOverAccuracy: false },
   concurrency: 4,
   reporters: ["clear-text", "progress", "html", "json"],
   htmlReporter: { fileName: "reports/mutation/index.html" },
   jsonReporter: { fileName: "reports/mutation/mutation.json" },
-  // Collect an initial baseline without imposing a mutation-score gate yet.
-  thresholds: { high: 80, low: 60, break: null },
+  // Every type-valid mutant in the configured source scope must be detected.
+  thresholds: { high: 100, low: 100, break: 100 },
 }

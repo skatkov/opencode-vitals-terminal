@@ -58,3 +58,14 @@ test("a reused sidebar follows reactive session changes and disposes cleanly", (
   stop()
   assert.equal(sidebar.visible("b"), false)
 })
+
+test("the final unmount releases the session key rather than retaining a zero count", () => {
+  const sidebar = new SidebarStore()
+  const first = sidebar.mount("a")
+  const second = sidebar.mount("a")
+  first()
+  assert.deepEqual(Object.keys(sidebar["mounted"]), ["a"])
+  second()
+  // Resource retention is not observable through visible(), which treats zero as hidden.
+  assert.deepEqual(Object.keys(sidebar["mounted"]), [])
+})

@@ -185,7 +185,9 @@ If mise is not activated in your shell, use `mise exec -- npm run test:mutation`
 
 Open `reports/mutation/index.html` for the interactive report; `reports/mutation/mutation.json` contains the machine-readable results. Reports and Stryker's temporary sandbox are ignored by git.
 
-`stryker.config.mjs` targets the logic in `src/**/*.ts`, including accounting, history, formatting, and reactive stores/views. It does not mutate tests or the host-loaded `index.ts` and `tui.tsx` entrypoints, which the unit suite does not load. The TAP runner uses the existing `node:test` tests unchanged, preserving Solid's `browser` condition and Node's TypeScript stripping, with coverage-based selection at the test-file level. Mutation testing is slower than `npm test`; up to four mutation workers run concurrently.
+`stryker.config.mjs` targets the logic in `src/**/*.ts`, including accounting, history, formatting, and reactive stores/views. It does not mutate tests or the host-loaded `index.ts` and `tui.tsx` entrypoints, which the unit suite does not load. The TAP runner uses the `node:test` suite directly, preserving Solid's `browser` condition and Node's TypeScript stripping, with coverage-based selection at the test-file level.
+
+The [TypeScript checker](https://stryker-mutator.io/docs/stryker-js/typescript-checker/) validates each mutant against `tsconfig.json` before running tests. Type-invalid mutants appear as `CompileError` and are excluded from the mutation score, not counted as caught by tests. It runs in accuracy-first mode (`prioritizePerformanceOverAccuracy: false`), which checks mutants individually and can take several minutes. The four-worker concurrency limit is shared between checker and test-runner processes. Keep running `npm run check` separately to validate the original project.
 
 Stryker is a development-only dependency. A scoped override keeps its transitive `qs` dependency on a patched release without changing the plugin's runtime dependencies.
 
@@ -196,7 +198,7 @@ npm run test:mutation -- --dryRunOnly
 npm run test:mutation -- --mutate src/metrics.ts
 ```
 
-No minimum mutation score is enforced initially (`thresholds.break` is `null`). Review surviving mutants in the report to identify missing assertions or equivalent changes before choosing a score gate.
+The mutation score must stay at **100%** (`thresholds.break` is `100`); any surviving or uncovered type-valid mutant fails the run. There are no excluded mutation categories or inline suppression comments. Simplify redundant implementation paths and add behavioral tests rather than hiding surviving mutants. This score applies to the configured `src/` scope, not the host-loaded entrypoints, and is not a line/branch code-coverage measurement.
 
 The separate **Mutation testing** GitHub Actions workflow runs on demand via **Run workflow** and uploads the reports as the `mutation-report` artifact. It does not slow down push/pull-request CI or publishing, and no Stryker dashboard credentials are needed.
 

@@ -114,5 +114,7 @@ test("plugin disposal releases projections even while a view remains mounted", (
   store.dispose()
   setSource({ ...source(), steps: 2 })
   assert.equal(reads, 1)
+  // Disposed memos must not remain retained until their consumers unmount.
+  assert.equal(store["observations"].size, 0)
   view.dispose()
 })

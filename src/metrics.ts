@@ -56,7 +56,7 @@ export function mergeMessages(...groups: readonly (readonly MetricMessage[])[]):
     }
   }
   // Match the sortable-ID comparisons OpenCode uses for undo boundaries.
-  return [...messages.values()].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  return [...messages.keys()].sort().map((id) => messages.get(id)!)
 }
 
 export function calculateVitals(
@@ -86,7 +86,7 @@ export function calculateVitals(
     lastUsage = message
   }
 
-  const contextTokens = lastUsage?.tokens && tokenTotal(lastUsage.tokens)
+  const contextTokens = lastUsage?.tokens ? tokenTotal(lastUsage.tokens) : 0
   const selectedModel = lastUsage?.model
   const model = selectedModel && models.find(
     (model) => model.providerID === selectedModel.providerID && model.id === selectedModel.id,
@@ -97,7 +97,7 @@ export function calculateVitals(
     completedSteps,
     tokens,
     totalTokens: tokenTotal(tokens),
-    context: contextTokens && contextTokens > 0
+    context: contextTokens > 0
       ? {
           tokens: contextTokens,
           percent: model?.limit.context ? Math.round(contextTokens / model.limit.context * 100) : undefined,
