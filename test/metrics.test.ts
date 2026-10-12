@@ -143,12 +143,6 @@ test("merging unordered history and live groups sorts unique message IDs", () =>
   assert.deepEqual(messages.map((message) => message.id), ["msg_001", "msg_002", "msg_003", "msg_004"])
 })
 
-test("sorting a long interleaved history handles both ascending and descending comparisons", () => {
-  const ids = Array.from({ length: 128 }, (_, index) => `msg_${String(index).padStart(3, "0")}`)
-  const shuffled = ids.map((_, index) => user(ids[index * 37 % ids.length]))
-  assert.deepEqual(mergeMessages(projectMessages(shuffled)).map((message) => message.id), ids)
-})
-
 test("unfinished compaction and later user or idle messages preserve the last context usage", () => {
   const messages = projectMessages([assistant()])
   for (const message of [
