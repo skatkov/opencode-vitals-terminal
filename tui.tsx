@@ -1,11 +1,12 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, createMemo, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
-import { footerSummary, formatCost, parseOptions, sidebarRows } from "./src/format.ts"
+import { createMemo, For, Match, Show, Switch } from "solid-js"
+import { formatCost, parseOptions } from "./src/format.ts"
 import { calculateVitals, mergeMessages, projectMessages } from "./src/metrics.ts"
 import { SidebarStore } from "./src/sidebar.ts"
 import { HistoryStore } from "./src/store.ts"
 import { VitalsStore } from "./src/vitals-store.ts"
+import { createFooterSummary, createSidebarRows } from "./src/vitals-views.ts"
 
 const updates = [
   "session.inbox.delivered",
@@ -39,6 +40,7 @@ export default Plugin.define({
         session?.revert?.messageID,
       )
     })
+    const views = { history, vitals, sidebar, options, cost: (sessionID: string) => context.data.session.cost(sessionID) }
 
     function showVitals(sessionID: string) {
       history.ensure(sessionID)
@@ -125,11 +127,6 @@ export default Plugin.define({
       append: "prompt.footer",
       render: (props) => {
         const dimensions = useTerminalDimensions()
-        const metrics = createMemo(() => props.sessionID ? vitals.observe(props.sessionID) : undefined)
-        createEffect(() => {
-          const sessionID = props.sessionID
-          if (sessionID) untrack(() => history.ensure(sessionID))
-        })
         const shortcut = (id: string) => context.keymap.shortcuts(id)[0]
         const live = createMemo(() => {
           if (!props.sessionID) return ""
@@ -146,18 +143,8 @@ export default Plugin.define({
           const width = Math.max(0, dimensions().width - 8)
           return Math.max(0, width - Math.min(28, Math.floor(width / 3)))
         })
-        const summary = createMemo(() => {
-          const sessionID = props.sessionID
-          const read = metrics()
-          if (!sessionID || !read) return ""
-          return footerSummary(read(), {
-            width: Math.max(0, available() - (live() ? live().length + 3 : 0)),
-            sidebarVisible: sidebar.visible(sessionID),
-            complete: history.get(sessionID)?.complete === true,
-            cost: context.data.session.cost(sessionID),
-            options,
-          })
-        })
+        const summary = createFooterSummary(views, () => props.sessionID,
+          () => Math.max(0, available() - (live() ? live().length + 3 : 0)))
         const commands = createMemo(() => {
           const command = shortcut("command.palette.show")
           if (!command || dimensions().width < 44) return false
@@ -205,17 +192,7 @@ export default Plugin.define({
     const stopSidebar = context.ui.slot({
       append: "sidebar.content",
       render: (props) => {
-        const metrics = createMemo(() => vitals.observe(props.sessionID))
-        createEffect(() => {
-          const sessionID = props.sessionID
-          onCleanup(untrack(() => sidebar.mount(sessionID)))
-          untrack(() => history.ensure(sessionID))
-        })
-        const rows = createMemo(() => sidebarRows(metrics()(), {
-          complete: history.get(props.sessionID)?.complete === true,
-          cost: context.data.session.cost(props.sessionID),
-          options,
-        }))
+        const rows = createSidebarRows(views, () => props.sessionID)
         return (
           <box onMouseUp={() => showVitals(props.sessionID)}>
             <text fg={context.theme.text.base}><b>Vitals</b></text>

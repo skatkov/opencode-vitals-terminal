@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { compactNumber, footerSummary, parseOptions, sidebarRows } from "../src/format.ts"
+import { compactNumber, contextSummary, footerSummary, parseOptions, sidebarRows } from "../src/format.ts"
 import { sampleVitals } from "./fixtures.ts"
 
 test("default options show both total tokens and existing context usage", () => {
@@ -61,50 +61,36 @@ test("total-only mode omits the context field and cost can be disabled", () => {
   assert.equal(text, "1 turn · 1 step · 185 total")
 })
 
-test("visible sidebar restores a context-only footer without session counts, totals, or cost", () => {
+test("context summary shows model usage without session counts, totals, or cost", () => {
   const vitals = sampleVitals()
   vitals.totalTokens = 549_700
   vitals.context = { tokens: 38_700, percent: 10 }
-  const text = footerSummary(vitals, {
-    width: 160, sidebarVisible: true, complete: true, cost: 0.42, options: parseOptions({}),
-  })
+  const text = contextSummary(vitals.context, 160)
   assert.equal(text, "38.7K (10%)")
 })
 
-test("hidden sidebar retains the full vitals footer", () => {
+test("full vitals footer retains session counts, totals, context, and cost", () => {
   assert.equal(footerSummary(sampleVitals(), {
-    width: 160, sidebarVisible: false, complete: true, cost: 0.42, options: parseOptions({}),
+    width: 160, complete: true, cost: 0.42, options: parseOptions({}),
   }), "1 turn · 1 step · 185 total · 185 · $0.42")
 })
 
-test("sidebar-visible footer keeps model context even with total-only tokens configured", () => {
-  assert.equal(footerSummary(sampleVitals(), {
-    width: 160, sidebarVisible: true, complete: false, cost: 0.42, options: parseOptions({ tokens: "total" }),
-  }), "185")
-})
-
-test("sidebar-visible footer shows a placeholder when model context is unavailable", () => {
+test("context summary shows a placeholder when model usage is unavailable", () => {
   const vitals = sampleVitals()
   vitals.context = undefined
-  assert.equal(footerSummary(vitals, {
-    width: 160, sidebarVisible: true, complete: false, cost: 0, options: parseOptions({}),
-  }), "–")
+  assert.equal(contextSummary(vitals.context, 160), "–")
 })
 
 test("context-only footer drops its percentage when available width is limited", () => {
   const vitals = sampleVitals()
   vitals.context = { tokens: 38_700, percent: 10 }
-  assert.equal(footerSummary(vitals, {
-    width: 5, sidebarVisible: true, complete: true, cost: 0, options: parseOptions({}),
-  }), "38.7K")
+  assert.equal(contextSummary(vitals.context, 5), "38.7K")
 })
 
 test("context-only footer keeps a known zero-percent estimate", () => {
   const vitals = sampleVitals()
   vitals.context = { tokens: 185, percent: 0 }
-  assert.equal(footerSummary(vitals, {
-    width: 160, sidebarVisible: true, complete: true, cost: 0, options: parseOptions({}),
-  }), "185 (0%)")
+  assert.equal(contextSummary(vitals.context, 160), "185 (0%)")
 })
 
 test("sidebar shows exact session counts, token usage, context percentage, and cost", () => {
