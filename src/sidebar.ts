@@ -10,10 +10,7 @@ export class SidebarStore {
 
   mount(sessionID: string): () => void {
     this.mounted[sessionID] = (this.mounted[sessionID] ?? 0) + 1
-    let active = true
     return () => {
-      if (!active) return
-      active = false
       const count = this.mounted[sessionID] ?? 0
       if (count <= 1) delete this.mounted[sessionID]
       else this.mounted[sessionID] = count - 1

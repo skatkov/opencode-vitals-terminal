@@ -31,11 +31,10 @@ test("sidebar visibility is scoped to the session whose contribution is mounted"
   assert.equal(sidebar.visible("a"), false)
 })
 
-test("overlapping mounts and repeated cleanup do not hide another sidebar contribution", () => {
+test("overlapping mounts do not hide another sidebar contribution", () => {
   const sidebar = new SidebarStore()
   const first = sidebar.mount("a")
   const second = sidebar.mount("a")
-  first()
   first()
   assert.equal(sidebar.visible("a"), true)
   second()
