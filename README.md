@@ -2,22 +2,24 @@
 
 **Session usage, below your prompt and in your sidebar.**
 
-Turns, model steps, cumulative tokens, context usage, and cost **in OpenCode V2's existing terminal prompt footer and session sidebar**. No separate dashboard, desktop renderer injection, server hooks, telemetry, or extra model requests.
+Turns, model steps, and context usage **in OpenCode V2's existing terminal prompt footer**, with cumulative tokens and cost **in the session sidebar**. No separate dashboard, desktop renderer injection, server hooks, telemetry, or extra model requests.
 
 **For the full-screen terminal client**, not Desktop or `opencode mini`.
 
 Inspired by [OpenCode Vitals](https://github.com/moutazideal/opencode-vitals) and its idea of keeping session metrics beside the composer. This project brings that idea to the terminal with usage counts, not streaming tokens per second.
 
-![OpenCode terminal prompt footer showing turns, model steps, total tokens, and context usage](screenshot.png)
+![Earlier OpenCode Vitals terminal layout](screenshot.png)
+
+*Screenshot from an earlier layout; cumulative tokens and cost now appear only in the sidebar and details view.*
 
 ```text
-~/code/project                  8 turns · 42 steps · 320K total · 24K (19%) · $0.43
+~/code/project                                 8 turns · 42 steps · 24K (19%)
 ```
 
 The line automatically abbreviates on smaller terminals:
 
 ```text
-8t · 42s · 320K total · 24K
+8t · 42s · 24K
 ```
 
 When OpenCode's right sidebar is visible, a **Vitals** section shows the full metrics with exact counts:
@@ -31,13 +33,13 @@ Context: 24,000 (19%)
 Cost: $0.43
 ```
 
-With the sidebar visible, the footer switches to a standard-style model-context summary, without repeating turns, steps, cumulative tokens, or cost:
+With the sidebar visible, the footer switches to a standard-style model-context summary, without repeating turns or steps:
 
 ```text
 ~/code/project                                                    24K (19%)
 ```
 
-Hiding the sidebar or narrowing the terminal restores the full vitals footer. This follows the sidebar's actual visibility, including manual toggling, rather than just terminal width. Both views share the same history and live updates.
+Hiding the sidebar or narrowing the terminal restores turns and steps in the footer alongside current context usage. Cumulative tokens and cost stay out of the footer; they remain available through `/vitals` even when the sidebar is hidden. This follows the sidebar's actual visibility, including manual toggling, rather than just terminal width. Both views share the same history and live updates.
 
 Click the footer summary or sidebar vitals section, or run `/vitals`, for an input/output/reasoning/cache breakdown. `/vitals-refresh` rereads the session history if needed.
 
@@ -46,11 +48,11 @@ Click the footer summary or sidebar vitals section, or run `/vitals`, for an inp
 | Feature | What it does |
 | --- | --- |
 | **Session counts** | Delivered user turns and primary model steps for the session you are viewing, including work in progress. |
-| **Usage at a glance** | Cumulative provider-reported tokens beside the original context estimate and optional cost display. |
+| **Usage at a glance** | Turns, steps, and current context below the prompt; cumulative provider-reported tokens and recorded cost in the sidebar. |
 | **Details on demand** | Click the summary or run `/vitals` for exact counts and a token breakdown. |
 | **History-aware totals** | Read full history on resume and reconnect, and exclude reverted messages after undo. Incomplete totals are marked with `~`. |
 | **A footer that fits** | Abbreviate on narrow terminals while retaining the host's spinner, working directory, and editor-file display. |
-| **Sidebar vitals** | Show exact counts in the right sidebar when it is visible, with a context-only footer. Restore the full footer when the sidebar is hidden. |
+| **Sidebar vitals** | Show exact counts, cumulative tokens, and cost in the right sidebar, with a context-only footer. Restore turns and steps in the footer when the sidebar is hidden. |
 
 ## Install
 
@@ -73,7 +75,7 @@ Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CO
 }
 ```
 
-**Keep your other settings and plugin entries.** [`cli.example.json`](cli.example.json) contains an example with options; do not copy it over an existing config. To pin a release, use `opencode-vitals-terminal@0.2.0` instead of the unversioned package name.
+**Keep your other settings and plugin entries.** [`cli.example.json`](cli.example.json) contains the configuration above; do not copy it over an existing config. To pin a release, use `opencode-vitals-terminal@0.3.0` instead of the unversioned package name. See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 The first entry disables only the built-in footer contribution that contains the original token/cost line. Without it, both summaries appear. Our contribution uses the same `prompt.footer` slot, rather than replacing the whole footer: the host's spinner, working directory, interrupt status, and editor-file display remain intact. Shell-mode hints, command/agent shortcuts when space permits, and running-subagent/shell indicators are retained.
 
@@ -103,46 +105,25 @@ OPENCODE_CLI_CONFIG_CONTENT='{"plugins":["-opencode.prompt.footer","-opencode.si
 
 The environment override replaces the configured plugin array for that process; include any other terminal plugins you want in that preview.
 
-## Options
+## Display
 
-Use the package name (or your checkout's absolute path) in the object form when passing options:
+There are no display options to configure. Turns, steps, cumulative tokens, context usage, and recorded cost are always enabled. Previous `tokens` and `cost` options are ignored.
 
-```json
-{
-  "plugins": [
-    "-opencode.prompt.footer",
-    "-opencode.sidebar.context",
-    {
-      "package": "opencode-vitals-terminal",
-      "options": {
-        "tokens": "both",
-        "cost": true
-      }
-    }
-  ]
-}
-```
-
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `tokens` | `"both"` | `"both"`: total tokens and current context. `"context"`: the original token-count semantics, plus turns/steps. `"total"`: cumulative tokens only. |
-| `cost` | `true` | Show cost in the vitals sidebar and, when space permits, the full vitals footer. |
-
-Both options apply to the sidebar and the full vitals footer shown when the sidebar is hidden. When the sidebar is visible, the footer always shows model-context usage only, regardless of these options. The installation configuration disables only the duplicate built-in Context section; other sidebar content stays intact.
+Cumulative total tokens and recorded cost are shown in the sidebar and `/vitals`, never in the footer. Cost includes `$0.00`. With the sidebar hidden, the footer shows turns, steps, and current context usage. With the sidebar visible, it shows only model-context usage to avoid repeating the sidebar metrics.
 
 ## What the numbers mean
 
 - **Turns:** delivered user messages in this session's timeline. Includes the current turn. Steering messages count as separate user turns; this is **not** a count of completed assistant responses. Queued/pending messages, synthetic messages, and shell commands do not count.
 - **Steps:** distinct primary assistant/model-call messages, including a call in progress or a failed call. Multiple tool calls in one response are one step. Provider retries reusing the same assistant message ID do not inflate the counter. Title generation and compaction are not primary steps.
 - **Total:** cumulative provider-reported token usage: input + output + reasoning + cache-read + cache-write across primary model steps. Repeated context/cache tokens are counted per request, just as in OpenCode's usage accounting. This is neither unique transcript size nor billed cost. Usage updates when the provider finishes a step; missing usage is not estimated. Auxiliary title/compaction/generate usage is excluded.
-- **Context:** the unlabeled token count after the cumulative total. This is the original footer's estimate: the latest primary step's token usage since the last completed compaction, with its model's context-window percentage when known. It is not the cumulative token total.
-- **Cost:** OpenCode's existing session-cost value, which can include auxiliary work and descendants. It is not recalculated from the primary-step token total.
+- **Context:** the unlabeled token count in the footer. This is the original footer's estimate: the latest primary step's token usage since the last completed compaction, with its model's context-window percentage when known. It is not the cumulative token total.
+- **Cost:** OpenCode's existing session-cost value, which can include auxiliary work and descendants. It is not recalculated from the primary-step token total. `$0.00` means zero recorded cost, not necessarily zero actual billing; missing pricing information is not estimated.
 
 Turn, step, and token counters are **for the session you are viewing**. Subagent sessions have their own counters; the running-subagent indicator is still displayed.
 
 Full history is paginated independently of the TUI's recent-message cache, so resuming a long session does not reset its counters. Until history finishes loading, or if it cannot be read, incomplete totals carry a `~` prefix. Context remains available from the recent-message cache. Reconnects reread history, and staged/committed undo excludes the reverted part of the timeline. Removed history is not a lifetime-spend ledger.
 
-On narrow terminals the labels abbreviate first, then cost/context percentage are omitted. On very narrow terminals the context field may also be omitted; the detailed `/vitals` view remains available.
+On narrow terminals the labels abbreviate first, then the context percentage and separators are removed. The detailed `/vitals` view remains available at any width.
 
 ## Privacy
 
