@@ -73,7 +73,7 @@ Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CO
 }
 ```
 
-**Keep your other settings and plugin entries.** [`cli.example.json`](cli.example.json) contains an example with options; do not copy it over an existing config. To pin a release, use `opencode-vitals-terminal@0.1.0` instead of the unversioned package name.
+**Keep your other settings and plugin entries.** [`cli.example.json`](cli.example.json) contains an example with options; do not copy it over an existing config. To pin a release, use `opencode-vitals-terminal@0.2.0` instead of the unversioned package name.
 
 The first entry disables only the built-in footer contribution that contains the original token/cost line. Without it, both summaries appear. Our contribution uses the same `prompt.footer` slot, rather than replacing the whole footer: the host's spinner, working directory, interrupt status, and editor-file display remain intact. Shell-mode hints, command/agent shortcuts when space permits, and running-subagent/shell indicators are retained.
 
@@ -204,7 +204,7 @@ The separate **Mutation testing** GitHub Actions workflow runs on demand via **R
 
 ## Publishing
 
-The initial release is `0.1.0`. From an npm account with permission to publish `opencode-vitals-terminal`:
+To publish this package, use an npm account with permission to publish `opencode-vitals-terminal`:
 
 ```sh
 npm ci
