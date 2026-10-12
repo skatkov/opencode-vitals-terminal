@@ -45,7 +45,7 @@ export default Plugin.define({
         const number = (value: number) => value.toLocaleString("en-US")
         return (
           <box gap={1} padding={1}>
-            <text fg={context.theme.text.base}><b>Session vitals</b></text>
+            <text fg={context.theme.text.base}><b>Vitals</b></text>
             <Show when={history.get(sessionID)?.loading}>
               <text fg={context.theme.text.muted}>Reading full session history…</text>
             </Show>
@@ -209,7 +209,7 @@ export default Plugin.define({
         }))
         return (
           <box onMouseUp={() => showVitals(props.sessionID)}>
-            <text fg={context.theme.text.base}><b>Session vitals</b></text>
+            <text fg={context.theme.text.base}><b>Vitals</b></text>
             <For each={rows()}>
               {(row) => <text fg={context.theme.text.muted}>
                 {row.label}: <span style={{ fg: context.theme.text.base }}>{row.value}</span>

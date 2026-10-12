@@ -20,10 +20,10 @@ The line automatically abbreviates on smaller terminals:
 8t · 42s · 320K total · 24K
 ```
 
-When OpenCode's right sidebar is visible, a **Session vitals** section also shows the same metrics with exact counts:
+When OpenCode's right sidebar is visible, a **Vitals** section also shows the same metrics with exact counts:
 
 ```text
-Session vitals
+Vitals
 Turns: 8
 Steps: 42
 Total tokens: 320,000
@@ -70,6 +70,8 @@ Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CO
 
 The first entry disables only the built-in footer contribution that contains the original token/cost line. Without it, both summaries appear. Our contribution uses the same `prompt.footer` slot, rather than replacing the whole footer: the host's spinner, working directory, interrupt status, and editor-file display remain intact. Shell-mode hints, command/agent shortcuts when space permits, and running-subagent/shell indicators are retained.
 
+The `-opencode.sidebar.context` entry disables OpenCode's built-in **Context** section, since Vitals already includes context usage and cost. Only that duplicate section is hidden; the rest of the sidebar and our prompt footer stay intact. If you already installed the plugin, add this entry to your existing `plugins` array.
+
 Restart or reload the terminal client to load the plugin.
 
 ### Install from source
@@ -89,7 +91,7 @@ In the configuration above, replace `opencode-vitals-terminal` with the absolute
 ### Preview without changing configuration
 
 ```sh
-OPENCODE_CLI_CONFIG_CONTENT='{"plugins":["-opencode.prompt.footer","/absolute/path/opencode-vitals-terminal"]}' opencode
+OPENCODE_CLI_CONFIG_CONTENT='{"plugins":["-opencode.prompt.footer","-opencode.sidebar.context","/absolute/path/opencode-vitals-terminal"]}' opencode
 ```
 
 The environment override replaces the configured plugin array for that process; include any other terminal plugins you want in that preview.
@@ -102,6 +104,7 @@ Use the package name (or your checkout's absolute path) in the object form when 
 {
   "plugins": [
     "-opencode.prompt.footer",
+    "-opencode.sidebar.context",
     {
       "package": "opencode-vitals-terminal",
       "options": {
@@ -118,7 +121,7 @@ Use the package name (or your checkout's absolute path) in the object form when 
 | `tokens` | `"both"` | `"both"`: total tokens and current context. `"context"`: the original token-count semantics, plus turns/steps. `"total"`: cumulative tokens only. |
 | `cost` | `true` | Show cost in the vitals sidebar and, when space permits, the footer. |
 
-Both options apply to the footer and sidebar. The sidebar keeps OpenCode's existing content intact; no additional configuration is needed.
+Both options apply to the footer and sidebar. The installation configuration disables only the duplicate built-in Context section; other sidebar content stays intact.
 
 ## What the numbers mean
 
@@ -140,7 +143,7 @@ Only lightweight usage metadata is kept in client memory. The plugin does not pe
 
 ## Remove
 
-Remove this plugin's entry and `-opencode.prompt.footer` from `cli.json`, then restart or reload the terminal client. Removing the disabling entry restores OpenCode's built-in footer contribution. Keep your other plugin entries and settings.
+Remove this plugin's entry, `-opencode.prompt.footer`, and `-opencode.sidebar.context` from `cli.json`, then restart or reload the terminal client. Removing the disabling entries restores OpenCode's built-in footer contribution and Context section. Keep your other plugin entries and settings.
 
 ## Development
 
