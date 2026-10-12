@@ -56,13 +56,15 @@ Restart or reload the terminal client to load the plugin.
 
 ### Install from source
 
-Use **Node 26.4 or newer** and npm for the checkout's dependencies and development checks, matching OpenTUI's declared Node runtime minimum:
+Use **Node 26.4.0 or newer** and npm for the checkout's dependencies and development checks, matching OpenTUI's declared Node runtime minimum:
 
 ```sh
 git clone https://github.com/skatkov/opencode-vitals-terminal.git
 cd opencode-vitals-terminal
 npm ci
 ```
+
+For **mise** users, `mise.toml` pins a compatible Node version for this checkout. Run `mise install` before `npm ci`. If mise is not activated in your shell, use `mise exec -- npm ci` instead.
 
 In the configuration above, replace `opencode-vitals-terminal` with the absolute path to your checkout, such as `/absolute/path/opencode-vitals-terminal`. Keep the `-opencode.prompt.footer` entry, then restart or reload the terminal client.
 
@@ -133,7 +135,9 @@ The host loads the TypeScript/TSX entrypoints directly; no build is required. Op
 
 The plugin was also smoke-tested in the actual OpenCode 2.0.26 TUI at 160, 80, and 44 columns, including the `/vitals` dialog and live counter updates. Loading it did not require changing global configuration.
 
-The development dependency override keeps `seroval` on a patched release. On Node versions older than OpenTUI's declared runtime minimum, npm may print an engine warning; OpenCode itself provides the runtime used to load the plugin.
+The development dependency override keeps `seroval` on a patched release. If npm reports `EBADENGINE`, check `node --version` and upgrade to Node 26.4.0 or newer (or run `mise install` and use `mise exec -- npm ci`).
+
+For npm versions with install-script approvals, `allowScripts` explicitly denies the optional `msgpackr-extract` native build script. MessagePack decoding still works without native acceleration, using the JavaScript fallback. This avoids unreviewed-script warnings without enabling dependency install scripts broadly.
 
 CI runs the same install, type check, tests, and package preview on pushes and pull requests, using Node 26. Publishing is manual, as in `opencode-lightpanda`.
 

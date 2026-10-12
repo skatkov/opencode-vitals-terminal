@@ -18,7 +18,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "engines": {
-    "node": ">=22.6"
+    "node": ">=26.4.0"
   },
   "exports": {
     ".": "./index.ts",
@@ -53,6 +53,9 @@
   },
   "overrides": {
     "seroval": "^1.6.9"
+  },
+  "allowScripts": {
+    "msgpackr-extract": false
   },
   "devDependencies": {
     "@opencode/theme": "2.0.26",
