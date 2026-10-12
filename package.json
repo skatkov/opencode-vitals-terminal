@@ -3,7 +3,20 @@
   "version": "0.1.0",
   "description": "Turns, model steps, and token usage in OpenCode V2's existing terminal prompt footer.",
   "type": "module",
+  "author": "Stanislav (Stas) Katkov <git@skatkov.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skatkov/opencode-vitals-terminal.git"
+  },
+  "homepage": "https://github.com/skatkov/opencode-vitals-terminal#readme",
+  "bugs": {
+    "url": "https://github.com/skatkov/opencode-vitals-terminal/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "engines": {
     "node": ">=22.6"
   },
@@ -15,7 +28,8 @@
     "index.ts",
     "tui.tsx",
     "src",
-    "README.md"
+    "cli.example.json",
+    "screenshot.png"
   ],
   "scripts": {
     "check": "tsc --noEmit",
