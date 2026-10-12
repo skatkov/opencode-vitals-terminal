@@ -34,7 +34,11 @@ Click the summary or run `/vitals` for exact counts and an input/output/reasonin
 
 ## Install
 
-Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26. OpenCode installs the npm package and supplies the runtime that loads the plugin; no separate `npm install` is needed.
+Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26.
+
+### Install from npm (recommended)
+
+The plugin is published as [`opencode-vitals-terminal` on npm](https://www.npmjs.com/package/opencode-vitals-terminal). OpenCode installs the npm package and supplies the runtime that loads the plugin; no separate `npm install` is needed.
 
 Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CONFIG_HOME/opencode/cli.json`):
 
