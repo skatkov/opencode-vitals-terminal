@@ -151,3 +151,22 @@ test("sidebar visibility selects context formatting even when vitals options hid
   footer.dispose()
   fixture.dispose()
 })
+
+test("a sidebar on its own starts history loading and shares it across reactive session changes", async () => {
+  const fixture = views()
+  const [sessionID, setSessionID] = createSignal("a")
+  const sidebar = createRoot((dispose) => ({
+    rows: createSidebarRows(fixture.context, sessionID),
+    dispose,
+  }))
+  assert.equal(fixture.reads(), 1)
+  assert.deepEqual(sidebar.rows()[0], { label: "Turns", value: "~1" })
+  await new Promise((done) => setImmediate(done))
+  assert.deepEqual(sidebar.rows()[0], { label: "Turns", value: "1" })
+  setSessionID("b")
+  assert.equal(fixture.reads(), 2)
+  await new Promise((done) => setImmediate(done))
+  assert.deepEqual(sidebar.rows()[0], { label: "Turns", value: "1" })
+  sidebar.dispose()
+  fixture.dispose()
+})

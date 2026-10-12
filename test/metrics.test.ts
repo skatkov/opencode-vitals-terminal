@@ -122,3 +122,57 @@ test("metric projections discard prompt text, response content, and tool output"
   message.tokens!.cache.read = 999
   assert.equal(projected[1].tokens!.cache.read, 50)
 })
+
+test("compaction metadata is projected only for compactions and reflects their status", () => {
+  const compaction: SessionMessageInfo = {
+    id: "msg_003", type: "compaction", status: "running", reason: "manual",
+    summary: "", recent: "", time: { created: 3 },
+  }
+  const projected = projectMessages([user(), compaction])
+  assert.deepEqual(projected, [
+    { id: "msg_001", type: "user" },
+    { id: "msg_003", type: "compaction", compactionCompleted: false },
+  ])
+})
+
+test("merging unordered history and live groups sorts unique message IDs", () => {
+  const messages = mergeMessages(
+    projectMessages([assistant("msg_004"), user("msg_001"), assistant("msg_003")]),
+    projectMessages([assistant("msg_002"), user("msg_001")]),
+  )
+  assert.deepEqual(messages.map((message) => message.id), ["msg_001", "msg_002", "msg_003", "msg_004"])
+})
+
+test("sorting a long interleaved history handles both ascending and descending comparisons", () => {
+  const ids = Array.from({ length: 128 }, (_, index) => `msg_${String(index).padStart(3, "0")}`)
+  const shuffled = ids.map((_, index) => user(ids[index * 37 % ids.length]))
+  assert.deepEqual(mergeMessages(projectMessages(shuffled)).map((message) => message.id), ids)
+})
+
+test("unfinished compaction and later user or idle messages preserve the last context usage", () => {
+  const messages = projectMessages([assistant()])
+  for (const message of [
+    { id: "msg_003", type: "compaction", compactionCompleted: false },
+    { id: "msg_003", type: "user" },
+    { id: "msg_003", type: "idle" },
+    { id: "msg_003", type: "user", compactionCompleted: true },
+  ] as const) {
+    assert.deepEqual(calculateVitals([...messages, message]).context, { tokens: 185, percent: undefined })
+  }
+})
+
+test("context model lookup distinguishes providers with the same model ID", () => {
+  assert.deepEqual(calculateVitals(projectMessages([assistant()]), [
+    { id: "model", providerID: "other", limit: { context: 100, output: 100 } },
+    { id: "model", providerID: "test", limit: { context: 1000, output: 100 } },
+  ]).context, { tokens: 185, percent: 19 })
+})
+
+test("zero and negative usage never produce a context estimate", () => {
+  for (const input of [0, -1]) {
+    const messages = projectMessages([assistant("msg_002", {
+      tokens: { input, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+    })])
+    assert.equal(calculateVitals(messages).context, undefined)
+  }
+})

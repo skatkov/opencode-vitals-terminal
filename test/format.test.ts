@@ -153,3 +153,41 @@ test("sidebar preserves a known zero-percent context estimate", () => {
     label: "Context", value: "185 (0%)",
   })
 })
+
+test("context summaries retain the percentage at the exact width boundary", () => {
+  const context = { tokens: 38_700, percent: 10 }
+  const summary = "38.7K (10%)"
+  assert.equal(contextSummary(context, summary.length), summary)
+  assert.equal(contextSummary(context, summary.length - 1), "38.7K")
+})
+
+test("each footer layout preserves distinct totals and context at its exact width boundary", () => {
+  const vitals = { ...sampleVitals(), turns: 2, steps: 3, context: { tokens: 55, percent: 10 } }
+  for (const cost of [0, 0.42]) {
+    const suffix = cost ? " · $0.42" : ""
+    const layouts = [
+      `2 turns · 3 steps · 185 total · 55 (10%)${suffix}`,
+      `2t · 3s · 185 total · 55 (10%)${suffix}`,
+      "2t · 3s · 185 total · 55",
+      "2t 3s 185 total 55",
+      "2t 3s 185 total",
+    ]
+    for (const text of layouts) {
+      assert.equal(footerSummary(vitals, {
+        width: text.length, complete: true, cost, options: parseOptions({}),
+      }), text)
+    }
+  }
+})
+
+test("the smallest footer falls back to the configured token value even when it cannot fit", () => {
+  const vitals = { ...sampleVitals(), context: { tokens: 55, percent: 10 } }
+  for (const width of [0, 1, 12]) {
+    assert.equal(footerSummary(vitals, {
+      width, complete: true, cost: 0, options: parseOptions({ tokens: "context" }),
+    }), "1t 1s 55 tok")
+    assert.equal(footerSummary(vitals, {
+      width, complete: true, cost: 0, options: parseOptions({ tokens: "total" }),
+    }), "1t 1s 185 total")
+  }
+})

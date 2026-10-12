@@ -21,8 +21,9 @@ export async function readHistory(
     signal.throwIfAborted()
     messages.push(projectMessages(page.data))
     cursor = page.cursor.next ?? undefined
-    if (cursor && cursors.has(cursor)) throw new Error("OpenCode returned a repeated history cursor")
-    if (cursor) cursors.add(cursor)
-  } while (cursor)
+    if (!cursor) break
+    if (cursors.has(cursor)) throw new Error("OpenCode returned a repeated history cursor")
+    cursors.add(cursor)
+  } while (true)
   return mergeMessages(...messages)
 }

@@ -68,7 +68,8 @@ export class HistoryStore {
     } catch (error) {
       if (controller.signal.aborted || this.disposed) return
       this.states[sessionID] = {
-        messages: this.states[sessionID]?.messages ?? [],
+        // Refresh creates the state; forgetting/disposal aborts before this guard.
+        messages: this.states[sessionID]!.messages,
         complete: false,
         loading: false,
         error: error instanceof Error ? error.message : "Unable to read session history",
