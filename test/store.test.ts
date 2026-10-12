@@ -96,6 +96,7 @@ test("disposal aborts pending reads and prevents late updates", async () => {
   }, () => [])
   const loading = store.refresh("a")
   store.dispose()
+  assert.equal(store["requests"].size, 0)
   assert.equal(signal.aborted, true)
   resolve({ data: [user()], cursor: {} })
   await loading
@@ -252,16 +253,6 @@ test("an older request finishing cannot release a newer pending controller", asy
   requests[1].resolve({ data: [], cursor: {} })
   await newer
   store.dispose()
-})
-
-test("disposal releases controllers even when their requests have not settled", async () => {
-  let resolve!: (response: SessionMessagesResponse) => void
-  const store = new HistoryStore(() => new Promise((done) => { resolve = done }), () => [])
-  const loading = store.refresh("a")
-  store.dispose()
-  assert.equal(store["requests"].size, 0)
-  resolve({ data: [], cursor: {} })
-  await loading
 })
 
 test("forgetting a session between history completion and publication cannot resurrect it", async () => {
