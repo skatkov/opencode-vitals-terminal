@@ -10,7 +10,6 @@ export default {
   },
   coverageAnalysis: "perTest",
   checkers: ["typescript"],
-  tsconfigFile: "tsconfig.json",
   typescriptChecker: { prioritizePerformanceOverAccuracy: false },
   concurrency: 4,
   reporters: ["clear-text", "progress", "html", "json"],
