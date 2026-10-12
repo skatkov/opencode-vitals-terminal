@@ -1,6 +1,6 @@
 {
   "name": "opencode-vitals-terminal",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turns, model steps, and token usage in OpenCode V2's terminal prompt footer and session sidebar.",
   "type": "module",
   "author": "Stanislav (Stas) Katkov <git@skatkov.com>",
