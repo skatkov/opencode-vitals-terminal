@@ -1,8 +1,8 @@
 # OpenCode Vitals Terminal
 
-**Session usage, right below your prompt.**
+**Session usage, below your prompt and in your sidebar.**
 
-Turns, model steps, cumulative tokens, context usage, and cost **in OpenCode V2's existing terminal prompt footer**. No separate dashboard, desktop renderer injection, server hooks, telemetry, or extra model requests.
+Turns, model steps, cumulative tokens, context usage, and cost **in OpenCode V2's existing terminal prompt footer and session sidebar**. No separate dashboard, desktop renderer injection, server hooks, telemetry, or extra model requests.
 
 **For the full-screen terminal client**, not Desktop or `opencode mini`.
 
@@ -20,7 +20,26 @@ The line automatically abbreviates on smaller terminals:
 8t · 42s · 320K total · 24K
 ```
 
-Click the summary or run `/vitals` for exact counts and an input/output/reasoning/cache breakdown. `/vitals-refresh` rereads the session history if needed.
+When OpenCode's right sidebar is visible, a **Vitals** section shows the full metrics with exact counts:
+
+```text
+Vitals
+Turns: 8
+Steps: 42
+Total tokens: 320,000
+Context: 24,000 (19%)
+Cost: $0.43
+```
+
+With the sidebar visible, the footer switches to a standard-style model-context summary, without repeating turns, steps, cumulative tokens, or cost:
+
+```text
+~/code/project                                                    24K (19%)
+```
+
+Hiding the sidebar or narrowing the terminal restores the full vitals footer. This follows the sidebar's actual visibility, including manual toggling, rather than just terminal width. Both views share the same history and live updates.
+
+Click the footer summary or sidebar vitals section, or run `/vitals`, for an input/output/reasoning/cache breakdown. `/vitals-refresh` rereads the session history if needed.
 
 ## What you get
 
@@ -31,10 +50,11 @@ Click the summary or run `/vitals` for exact counts and an input/output/reasonin
 | **Details on demand** | Click the summary or run `/vitals` for exact counts and a token breakdown. |
 | **History-aware totals** | Read full history on resume and reconnect, and exclude reverted messages after undo. Incomplete totals are marked with `~`. |
 | **A footer that fits** | Abbreviate on narrow terminals while retaining the host's spinner, working directory, and editor-file display. |
+| **Sidebar vitals** | Show exact counts in the right sidebar when it is visible, with a context-only footer. Restore the full footer when the sidebar is hidden. |
 
 ## Install
 
-Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26.
+Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26 and 2.0.27. OpenCode supplies the runtime that loads the plugin.
 
 ### Install from npm (recommended)
 
@@ -47,6 +67,7 @@ Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CO
   "$schema": "https://opencode.ai/v2/cli.json",
   "plugins": [
     "-opencode.prompt.footer",
+    "-opencode.sidebar.context",
     "opencode-vitals-terminal"
   ]
 }
@@ -55,6 +76,8 @@ Merge these entries into `plugins` in `~/.config/opencode/cli.json` (or `$XDG_CO
 **Keep your other settings and plugin entries.** [`cli.example.json`](cli.example.json) contains an example with options; do not copy it over an existing config. To pin a release, use `opencode-vitals-terminal@0.1.0` instead of the unversioned package name.
 
 The first entry disables only the built-in footer contribution that contains the original token/cost line. Without it, both summaries appear. Our contribution uses the same `prompt.footer` slot, rather than replacing the whole footer: the host's spinner, working directory, interrupt status, and editor-file display remain intact. Shell-mode hints, command/agent shortcuts when space permits, and running-subagent/shell indicators are retained.
+
+The `-opencode.sidebar.context` entry disables OpenCode's built-in **Context** section, since Vitals already includes context usage and cost. Only that duplicate section is hidden; the rest of the sidebar and our prompt footer stay intact. If you already installed the plugin, add this entry to your existing `plugins` array.
 
 Restart or reload the terminal client to load the plugin.
 
@@ -70,12 +93,12 @@ npm ci
 
 For **mise** users, `mise.toml` pins a compatible Node version for this checkout. Run `mise install` before `npm ci`. If mise is not activated in your shell, use `mise exec -- npm ci` instead.
 
-In the configuration above, replace `opencode-vitals-terminal` with the absolute path to your checkout, such as `/absolute/path/opencode-vitals-terminal`. Keep the `-opencode.prompt.footer` entry, then restart or reload the terminal client.
+In the configuration above, replace `opencode-vitals-terminal` with the absolute path to your checkout, such as `/absolute/path/opencode-vitals-terminal`. Keep both `-opencode.prompt.footer` and `-opencode.sidebar.context` entries, then restart or reload the terminal client.
 
 ### Preview without changing configuration
 
 ```sh
-OPENCODE_CLI_CONFIG_CONTENT='{"plugins":["-opencode.prompt.footer","/absolute/path/opencode-vitals-terminal"]}' opencode
+OPENCODE_CLI_CONFIG_CONTENT='{"plugins":["-opencode.prompt.footer","-opencode.sidebar.context","/absolute/path/opencode-vitals-terminal"]}' opencode
 ```
 
 The environment override replaces the configured plugin array for that process; include any other terminal plugins you want in that preview.
@@ -88,6 +111,7 @@ Use the package name (or your checkout's absolute path) in the object form when 
 {
   "plugins": [
     "-opencode.prompt.footer",
+    "-opencode.sidebar.context",
     {
       "package": "opencode-vitals-terminal",
       "options": {
@@ -102,7 +126,9 @@ Use the package name (or your checkout's absolute path) in the object form when 
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `tokens` | `"both"` | `"both"`: total tokens and current context. `"context"`: the original token-count semantics, plus turns/steps. `"total"`: cumulative tokens only. |
-| `cost` | `true` | Retain OpenCode's cost display when space permits. |
+| `cost` | `true` | Show cost in the vitals sidebar and, when space permits, the full vitals footer. |
+
+Both options apply to the sidebar and the full vitals footer shown when the sidebar is hidden. When the sidebar is visible, the footer always shows model-context usage only, regardless of these options. The installation configuration disables only the duplicate built-in Context section; other sidebar content stays intact.
 
 ## What the numbers mean
 
@@ -124,7 +150,7 @@ Only lightweight usage metadata is kept in client memory. The plugin does not pe
 
 ## Remove
 
-Remove this plugin's entry and `-opencode.prompt.footer` from `cli.json`, then restart or reload the terminal client. Removing the disabling entry restores OpenCode's built-in footer contribution. Keep your other plugin entries and settings.
+Remove this plugin's entry, `-opencode.prompt.footer`, and `-opencode.sidebar.context` from `cli.json`, then restart or reload the terminal client. Removing the disabling entries restores OpenCode's built-in footer contribution and Context section. Keep your other plugin entries and settings.
 
 ## Development
 
@@ -135,7 +161,7 @@ npm test
 npm pack --dry-run
 ```
 
-The host loads the TypeScript/TSX entrypoints directly; no build is required. OpenTUI/Solid are peer dependencies supplied by the host. Local tests exercise accounting, pagination, deduplication, formatting, undo boundaries, concurrent reads, and cleanup without making model requests.
+The host loads the TypeScript/TSX entrypoints directly; no build is required. OpenTUI/Solid are peer dependencies supplied by the host. Local tests exercise accounting, pagination, deduplication, responsive formatting, sidebar lifecycle, undo boundaries, concurrent reads, and cleanup without making model requests.
 
 The plugin was also smoke-tested in the actual OpenCode 2.0.26 TUI at 160, 80, and 44 columns, including the `/vitals` dialog and live counter updates. Loading it did not require changing global configuration.
 

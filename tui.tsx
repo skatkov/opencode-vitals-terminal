@@ -1,9 +1,12 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, createMemo, Match, Show, Switch, untrack } from "solid-js"
-import { footerSummary, formatCost, parseOptions } from "./src/format.ts"
+import { createMemo, For, Match, Show, Switch } from "solid-js"
+import { formatCost, parseOptions } from "./src/format.ts"
 import { calculateVitals, mergeMessages, projectMessages } from "./src/metrics.ts"
+import { SidebarStore } from "./src/sidebar.ts"
 import { HistoryStore } from "./src/store.ts"
+import { VitalsStore } from "./src/vitals-store.ts"
+import { createFooterSummary, createSidebarRows } from "./src/vitals-views.ts"
 
 const updates = [
   "session.inbox.delivered",
@@ -20,6 +23,7 @@ export default Plugin.define({
   id: "opencode-vitals-terminal",
   setup(context) {
     const options = parseOptions(context.options)
+    const sidebar = new SidebarStore()
     const cached = (sessionID: string) => {
       const pending = new Set(context.data.session.pending.list(sessionID).map((item) => item.id))
       return projectMessages(context.data.session.message.list(sessionID).filter((message) => !pending.has(message.id)))
@@ -28,24 +32,25 @@ export default Plugin.define({
       (input, requestOptions) => context.client.message.list(input, requestOptions),
       cached,
     )
-    const vitals = (sessionID: string) => {
+    const vitals = new VitalsStore((sessionID) => {
       const session = context.data.session.get(sessionID)
       return calculateVitals(
         mergeMessages(history.get(sessionID)?.messages ?? [], cached(sessionID)),
         context.data.location.model.list(session?.location),
         session?.revert?.messageID,
       )
-    }
+    })
+    const views = { history, vitals, sidebar, options, cost: (sessionID: string) => context.data.session.cost(sessionID) }
 
     function showVitals(sessionID: string) {
       history.ensure(sessionID)
       context.ui.dialog.set({ size: "medium" })
       context.ui.dialog.show(() => {
-        const metrics = createMemo(() => vitals(sessionID))
+        const metrics = vitals.observe(sessionID)
         const number = (value: number) => value.toLocaleString("en-US")
         return (
           <box gap={1} padding={1}>
-            <text fg={context.theme.text.base}><b>Session vitals</b></text>
+            <text fg={context.theme.text.base}><b>Vitals</b></text>
             <Show when={history.get(sessionID)?.loading}>
               <text fg={context.theme.text.muted}>Reading full session history…</text>
             </Show>
@@ -122,10 +127,6 @@ export default Plugin.define({
       append: "prompt.footer",
       render: (props) => {
         const dimensions = useTerminalDimensions()
-        createEffect(() => {
-          const sessionID = props.sessionID
-          if (sessionID) untrack(() => history.ensure(sessionID))
-        })
         const shortcut = (id: string) => context.keymap.shortcuts(id)[0]
         const live = createMemo(() => {
           if (!props.sessionID) return ""
@@ -142,15 +143,8 @@ export default Plugin.define({
           const width = Math.max(0, dimensions().width - 8)
           return Math.max(0, width - Math.min(28, Math.floor(width / 3)))
         })
-        const summary = createMemo(() => {
-          if (!props.sessionID) return ""
-          return footerSummary(vitals(props.sessionID), {
-            width: Math.max(0, available() - (live() ? live().length + 3 : 0)),
-            complete: history.get(props.sessionID)?.complete === true,
-            cost: context.data.session.cost(props.sessionID),
-            options,
-          })
-        })
+        const summary = createFooterSummary(views, () => props.sessionID,
+          () => Math.max(0, available() - (live() ? live().length + 3 : 0)))
         const commands = createMemo(() => {
           const command = shortcut("command.palette.show")
           if (!command || dimensions().width < 44) return false
@@ -195,10 +189,29 @@ export default Plugin.define({
       },
     })
 
+    const stopSidebar = context.ui.slot({
+      append: "sidebar.content",
+      render: (props) => {
+        const rows = createSidebarRows(views, () => props.sessionID)
+        return (
+          <box onMouseUp={() => showVitals(props.sessionID)}>
+            <text fg={context.theme.text.base}><b>Vitals</b></text>
+            <For each={rows()}>
+              {(row) => <text fg={context.theme.text.muted}>
+                {row.label}: <span style={{ fg: context.theme.text.base }}>{row.value}</span>
+              </text>}
+            </For>
+          </box>
+        )
+      },
+    })
+
     return () => {
       for (const stop of stopEvents) stop()
       stopFooter()
+      stopSidebar()
       history.dispose()
+      vitals.dispose()
     }
   },
 })
