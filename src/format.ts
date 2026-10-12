@@ -18,6 +18,28 @@ export function formatCost(cost: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cost)
 }
 
+export function sidebarRows(
+  vitals: Vitals,
+  input: { complete: boolean; cost: number; options: Options },
+): { label: string; value: string }[] {
+  const prefix = input.complete ? "" : "~"
+  const number = (value: number) => value.toLocaleString("en-US")
+  const rows = [
+    { label: "Turns", value: `${prefix}${number(vitals.turns)}` },
+    { label: "Steps", value: `${prefix}${number(vitals.steps)}` },
+  ]
+  if (input.options.tokens !== "context") {
+    rows.push({ label: "Total tokens", value: `${prefix}${number(vitals.totalTokens)}` })
+  }
+  if (input.options.tokens !== "total") {
+    const context = vitals.context ? number(vitals.context.tokens) : "–"
+    const percent = vitals.context?.percent === undefined ? "" : ` (${vitals.context.percent}%)`
+    rows.push({ label: "Context", value: `${context}${percent}` })
+  }
+  if (input.options.cost && input.cost > 0) rows.push({ label: "Cost", value: formatCost(input.cost) })
+  return rows
+}
+
 export function footerSummary(
   vitals: Vitals,
   input: { width: number; complete: boolean; cost: number; options: Options },

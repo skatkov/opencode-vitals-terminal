@@ -1,8 +1,8 @@
 # OpenCode Vitals Terminal
 
-**Session usage, right below your prompt.**
+**Session usage, below your prompt and in your sidebar.**
 
-Turns, model steps, cumulative tokens, context usage, and cost **in OpenCode V2's existing terminal prompt footer**. No separate dashboard, desktop renderer injection, server hooks, telemetry, or extra model requests.
+Turns, model steps, cumulative tokens, context usage, and cost **in OpenCode V2's existing terminal prompt footer and session sidebar**. No separate dashboard, desktop renderer injection, server hooks, telemetry, or extra model requests.
 
 **For the full-screen terminal client**, not Desktop or `opencode mini`.
 
@@ -20,7 +20,20 @@ The line automatically abbreviates on smaller terminals:
 8t · 42s · 320K total · 24K
 ```
 
-Click the summary or run `/vitals` for exact counts and an input/output/reasoning/cache breakdown. `/vitals-refresh` rereads the session history if needed.
+When OpenCode's right sidebar is visible, a **Session vitals** section also shows the same metrics with exact counts:
+
+```text
+Session vitals
+Turns: 8
+Steps: 42
+Total tokens: 320,000
+Context: 24,000 (19%)
+Cost: $0.43
+```
+
+The footer stays visible too; hiding the sidebar or narrowing the terminal does not remove the footer values. Both views share the same history and live updates.
+
+Click the footer summary or sidebar vitals section, or run `/vitals`, for an input/output/reasoning/cache breakdown. `/vitals-refresh` rereads the session history if needed.
 
 ## What you get
 
@@ -31,10 +44,11 @@ Click the summary or run `/vitals` for exact counts and an input/output/reasonin
 | **Details on demand** | Click the summary or run `/vitals` for exact counts and a token breakdown. |
 | **History-aware totals** | Read full history on resume and reconnect, and exclude reverted messages after undo. Incomplete totals are marked with `~`. |
 | **A footer that fits** | Abbreviate on narrow terminals while retaining the host's spinner, working directory, and editor-file display. |
+| **Sidebar vitals** | Show exact counts in the right sidebar when it is visible, without hiding or changing the footer. |
 
 ## Install
 
-Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26.
+Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26 and 2.0.27. Use **Node 22.6 or newer** and npm to install the checkout's dependencies; OpenCode supplies the runtime that loads the plugin.
 
 ### Install from npm (recommended)
 
@@ -102,7 +116,9 @@ Use the package name (or your checkout's absolute path) in the object form when 
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `tokens` | `"both"` | `"both"`: total tokens and current context. `"context"`: the original token-count semantics, plus turns/steps. `"total"`: cumulative tokens only. |
-| `cost` | `true` | Retain OpenCode's cost display when space permits. |
+| `cost` | `true` | Show cost in the vitals sidebar and, when space permits, the footer. |
+
+Both options apply to the footer and sidebar. The sidebar keeps OpenCode's existing content intact; no additional configuration is needed.
 
 ## What the numbers mean
 

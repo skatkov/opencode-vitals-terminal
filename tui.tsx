@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, createMemo, Match, Show, Switch, untrack } from "solid-js"
-import { footerSummary, formatCost, parseOptions } from "./src/format.ts"
+import { createEffect, createMemo, For, Match, Show, Switch, untrack } from "solid-js"
+import { footerSummary, formatCost, parseOptions, sidebarRows } from "./src/format.ts"
 import { calculateVitals, mergeMessages, projectMessages } from "./src/metrics.ts"
 import { HistoryStore } from "./src/store.ts"
 
@@ -195,9 +195,35 @@ export default Plugin.define({
       },
     })
 
+    const stopSidebar = context.ui.slot({
+      append: "sidebar.content",
+      render: (props) => {
+        createEffect(() => {
+          const sessionID = props.sessionID
+          untrack(() => history.ensure(sessionID))
+        })
+        const rows = createMemo(() => sidebarRows(vitals(props.sessionID), {
+          complete: history.get(props.sessionID)?.complete === true,
+          cost: context.data.session.cost(props.sessionID),
+          options,
+        }))
+        return (
+          <box onMouseUp={() => showVitals(props.sessionID)}>
+            <text fg={context.theme.text.base}><b>Session vitals</b></text>
+            <For each={rows()}>
+              {(row) => <text fg={context.theme.text.muted}>
+                {row.label}: <span style={{ fg: context.theme.text.base }}>{row.value}</span>
+              </text>}
+            </For>
+          </box>
+        )
+      },
+    })
+
     return () => {
       for (const stop of stopEvents) stop()
       stopFooter()
+      stopSidebar()
       history.dispose()
     }
   },

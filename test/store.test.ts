@@ -19,6 +19,24 @@ test("tracked sessions stay separate and untracked background work is ignored", 
   store.dispose()
 })
 
+test("footer and sidebar consumers share a single history read, including after remount", async () => {
+  let reads = 0
+  let resolve!: (response: SessionMessagesResponse) => void
+  const store = new HistoryStore(() => {
+    reads++
+    return new Promise((done) => { resolve = done })
+  }, () => [])
+  store.ensure("a")
+  store.ensure("a")
+  assert.equal(reads, 1)
+  resolve({ data: [user()], cursor: {} })
+  await new Promise((done) => setImmediate(done))
+  assert.equal(store.get("a")!.complete, true)
+  store.ensure("a")
+  assert.equal(reads, 1)
+  store.dispose()
+})
+
 test("live steps arriving during backfill survive its publication", async () => {
   let resolve!: (response: SessionMessagesResponse) => void
   let cached: MetricMessage[] = []
