@@ -5,6 +5,7 @@ import { footerSummary, formatCost, parseOptions, sidebarRows } from "./src/form
 import { calculateVitals, mergeMessages, projectMessages } from "./src/metrics.ts"
 import { SidebarStore } from "./src/sidebar.ts"
 import { HistoryStore } from "./src/store.ts"
+import { VitalsStore } from "./src/vitals-store.ts"
 
 const updates = [
   "session.inbox.delivered",
@@ -30,20 +31,20 @@ export default Plugin.define({
       (input, requestOptions) => context.client.message.list(input, requestOptions),
       cached,
     )
-    const vitals = (sessionID: string) => {
+    const vitals = new VitalsStore((sessionID) => {
       const session = context.data.session.get(sessionID)
       return calculateVitals(
         mergeMessages(history.get(sessionID)?.messages ?? [], cached(sessionID)),
         context.data.location.model.list(session?.location),
         session?.revert?.messageID,
       )
-    }
+    })
 
     function showVitals(sessionID: string) {
       history.ensure(sessionID)
       context.ui.dialog.set({ size: "medium" })
       context.ui.dialog.show(() => {
-        const metrics = createMemo(() => vitals(sessionID))
+        const metrics = vitals.observe(sessionID)
         const number = (value: number) => value.toLocaleString("en-US")
         return (
           <box gap={1} padding={1}>
@@ -124,6 +125,7 @@ export default Plugin.define({
       append: "prompt.footer",
       render: (props) => {
         const dimensions = useTerminalDimensions()
+        const metrics = createMemo(() => props.sessionID ? vitals.observe(props.sessionID) : undefined)
         createEffect(() => {
           const sessionID = props.sessionID
           if (sessionID) untrack(() => history.ensure(sessionID))
@@ -145,12 +147,14 @@ export default Plugin.define({
           return Math.max(0, width - Math.min(28, Math.floor(width / 3)))
         })
         const summary = createMemo(() => {
-          if (!props.sessionID) return ""
-          return footerSummary(vitals(props.sessionID), {
+          const sessionID = props.sessionID
+          const read = metrics()
+          if (!sessionID || !read) return ""
+          return footerSummary(read(), {
             width: Math.max(0, available() - (live() ? live().length + 3 : 0)),
-            sidebarVisible: sidebar.visible(props.sessionID),
-            complete: history.get(props.sessionID)?.complete === true,
-            cost: context.data.session.cost(props.sessionID),
+            sidebarVisible: sidebar.visible(sessionID),
+            complete: history.get(sessionID)?.complete === true,
+            cost: context.data.session.cost(sessionID),
             options,
           })
         })
@@ -201,12 +205,13 @@ export default Plugin.define({
     const stopSidebar = context.ui.slot({
       append: "sidebar.content",
       render: (props) => {
+        const metrics = createMemo(() => vitals.observe(props.sessionID))
         createEffect(() => {
           const sessionID = props.sessionID
           onCleanup(untrack(() => sidebar.mount(sessionID)))
           untrack(() => history.ensure(sessionID))
         })
-        const rows = createMemo(() => sidebarRows(vitals(props.sessionID), {
+        const rows = createMemo(() => sidebarRows(metrics()(), {
           complete: history.get(props.sessionID)?.complete === true,
           cost: context.data.session.cost(props.sessionID),
           options,
@@ -229,6 +234,7 @@ export default Plugin.define({
       stopFooter()
       stopSidebar()
       history.dispose()
+      vitals.dispose()
     }
   },
 })
