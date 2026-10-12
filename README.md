@@ -169,7 +169,7 @@ The development dependency override keeps `seroval` on a patched release. If npm
 
 For npm versions with install-script approvals, `allowScripts` explicitly denies the optional `msgpackr-extract` native build script. MessagePack decoding still works without native acceleration, using the JavaScript fallback. This avoids unreviewed-script warnings without enabling dependency install scripts broadly.
 
-CI runs the same install, type check, tests, and package preview on pushes and pull requests, using Node 26. Publishing is manual, as in `opencode-lightpanda`.
+CI runs the same install, type check, tests, and package preview on pushes and pull requests, using Node 26. A separate publishing workflow runs manually or when a version tag is pushed.
 
 API references: [CLI plugins](https://opencode.ai/v2/docs/build/plugins/cli/) · [CLI plugin configuration](https://opencode.ai/v2/docs/cli/plugins/).
 
@@ -204,18 +204,25 @@ The separate **Mutation testing** GitHub Actions workflow runs on demand via **R
 
 ## Publishing
 
-To publish this package, use an npm account with permission to publish `opencode-vitals-terminal`:
+The **Publish** GitHub Actions workflow publishes to npm on demand via **Run workflow**, or automatically when a `v*` tag is pushed. It uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) with OIDC, so no npm token is stored in GitHub.
+
+Before the first run, configure a GitHub Actions trusted publisher in the npm package's **Settings → Trusted publishing**:
+
+- Organization or user: `skatkov`
+- Repository: `opencode-vitals-terminal`
+- Workflow filename: `publish.yml`
+- Environment name: leave blank
+- Allowed actions: enable direct publishing with `npm publish`
+
+After the workflow is pushed to `main` and the trusted publisher is configured, publish the current package version with:
 
 ```sh
-npm ci
-npm login
-npm publish --dry-run
-npm publish
+gh workflow run publish.yml --ref main
 ```
 
-`prepublishOnly` runs the type check and tests for both publish commands. The package ships the TypeScript/TSX entrypoints and runtime source directly, with the README, screenshot, example configuration, and license; no compilation step is needed. `publishConfig` targets the public npm registry.
+`npm publish` runs the existing `prepublishOnly` type check and tests before publishing. The package ships the TypeScript/TSX entrypoints and runtime source directly, with the README, screenshot, example configuration, and license; no compilation step is needed. `publishConfig` targets the public npm registry.
 
-For subsequent releases, bump the version with `npm version patch` (or `minor`/`major`) and commit and push the release changes and tag before publishing. npm will not overwrite an already published version.
+For subsequent releases, bump the version with `npm version patch` (or `minor`/`major`) and push the release commit and corresponding `vX.Y.Z` tag. The workflow verifies that the tag matches `package.json` before publishing. npm will not overwrite an already published version.
 
 ## License
 
