@@ -54,7 +54,7 @@ Click the footer summary or sidebar vitals section, or run `/vitals`, for an inp
 
 ## Install
 
-Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26 and 2.0.27. Use **Node 22.6 or newer** and npm to install the checkout's dependencies; OpenCode supplies the runtime that loads the plugin.
+Requires **OpenCode V2 2.0.26 or later**, with the CLI plugin API. Tested against 2.0.26 and 2.0.27. OpenCode supplies the runtime that loads the plugin.
 
 ### Install from npm (recommended)
 
