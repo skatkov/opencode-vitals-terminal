@@ -1,14 +1,13 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { createRoot, createSignal } from "solid-js"
-import { parseOptions, type Options } from "../src/format.ts"
 import { SidebarStore } from "../src/sidebar.ts"
 import { HistoryStore } from "../src/store.ts"
 import { VitalsStore } from "../src/vitals-store.ts"
 import { createFooterSummary, createSidebarRows } from "../src/vitals-views.ts"
 import { sampleVitals } from "./fixtures.ts"
 
-function views(options: Options = parseOptions({})) {
+function views() {
   const [source, setSource] = createSignal({
     ...sampleVitals(), totalTokens: 549_700, context: { tokens: 38_700, percent: 10 },
   })
@@ -25,7 +24,7 @@ function views(options: Options = parseOptions({})) {
   })
   const sidebar = new SidebarStore()
   return {
-    context: { history, vitals, sidebar, options, cost },
+    context: { history, vitals, sidebar, cost },
     calculations,
     reads: () => reads,
     setSource,
@@ -43,7 +42,7 @@ test("production sidebar effects switch the footer on mount, cleanup, and remoun
     dispose,
   }))
   await new Promise((done) => setImmediate(done))
-  assert.equal(footer.summary(), "1 turn · 1 step · 549.7K total · 38.7K (10%) · $0.42")
+  assert.equal(footer.summary(), "1 turn · 1 step · 38.7K (10%)")
   const sidebar = createRoot((dispose) => ({
     rows: createSidebarRows(fixture.context, () => "a"),
     dispose,
@@ -60,7 +59,7 @@ test("production sidebar effects switch the footer on mount, cleanup, and remoun
   assert.deepEqual(sidebar.rows()[0], { label: "Turns", value: "~1" })
   setWidth(160)
   sidebar.dispose()
-  assert.equal(footer.summary(), "~1 turn · ~1 step · ~549.7K total · 38.7K (10%) · $2.50")
+  assert.equal(footer.summary(), "~1 turn · ~1 step · 38.7K (10%)")
   const remounted = createRoot((dispose) => ({
     rows: createSidebarRows(fixture.context, () => "a"),
     dispose,
@@ -131,23 +130,46 @@ test("a footer without a session neither reads history nor observes accounting",
   fixture.dispose()
 })
 
-test("sidebar visibility selects context formatting even when vitals options hide context and cost", async () => {
-  const fixture = views(parseOptions({ tokens: "total", cost: false }))
+test("cumulative tokens and zero recorded cost stay in the sidebar, never the footer", async () => {
+  const fixture = views()
+  fixture.setCost(0)
   const footer = createRoot((dispose) => ({
     summary: createFooterSummary(fixture.context, () => "a", () => 160),
     dispose,
   }))
   await new Promise((done) => setImmediate(done))
-  assert.equal(footer.summary(), "1 turn · 1 step · 549.7K total")
+  assert.equal(footer.summary(), "1 turn · 1 step · 38.7K (10%)")
   const sidebar = createRoot((dispose) => ({
     rows: createSidebarRows(fixture.context, () => "a"),
     dispose,
   }))
   assert.equal(footer.summary(), "38.7K (10%)")
-  assert.deepEqual(sidebar.rows().map((row) => row.label), ["Turns", "Steps", "Total tokens"])
+  assert.deepEqual(sidebar.rows().map((row) => row.label), ["Turns", "Steps", "Total tokens", "Context", "Cost"])
+  assert.deepEqual(sidebar.rows()[2], { label: "Total tokens", value: "549,700" })
+  assert.deepEqual(sidebar.rows().at(-1), { label: "Cost", value: "$0.00" })
+  fixture.setCost(2.5)
+  assert.deepEqual(sidebar.rows().at(-1), { label: "Cost", value: "$2.50" })
+  assert.equal(footer.summary(), "38.7K (10%)")
   sidebar.dispose()
-  assert.equal(footer.summary(), "1 turn · 1 step · 549.7K total")
+  assert.equal(footer.summary(), "1 turn · 1 step · 38.7K (10%)")
   assert.equal(fixture.calculations.get("a"), 1)
+  footer.dispose()
+  fixture.dispose()
+})
+
+test("a footer on its own never reads recorded cost", async () => {
+  const fixture = views()
+  const footer = createRoot((dispose) => ({
+    summary: createFooterSummary({
+      ...fixture.context,
+      cost: () => { throw new Error("Footer must not read session cost") },
+    }, () => "a", () => 160),
+    dispose,
+  }))
+  await new Promise((done) => setImmediate(done))
+  assert.equal(footer.summary(), "1 turn · 1 step · 38.7K (10%)")
+  fixture.setCost(2.5)
+  assert.equal(footer.summary(), "1 turn · 1 step · 38.7K (10%)")
   footer.dispose()
   fixture.dispose()
 })

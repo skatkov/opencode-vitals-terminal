@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
-import { formatCost, parseOptions } from "./src/format.ts"
+import { formatCost } from "./src/format.ts"
 import { calculateVitals, mergeMessages, projectMessages } from "./src/metrics.ts"
 import { SidebarStore } from "./src/sidebar.ts"
 import { HistoryStore } from "./src/store.ts"
@@ -22,7 +22,6 @@ const updates = [
 export default Plugin.define({
   id: "opencode-vitals-terminal",
   setup(context) {
-    const options = parseOptions(context.options)
     const sidebar = new SidebarStore()
     const cached = (sessionID: string) => {
       const pending = new Set(context.data.session.pending.list(sessionID).map((item) => item.id))
@@ -40,7 +39,7 @@ export default Plugin.define({
         session?.revert?.messageID,
       )
     })
-    const views = { history, vitals, sidebar, options, cost: (sessionID: string) => context.data.session.cost(sessionID) }
+    const views = { history, vitals, sidebar, cost: (sessionID: string) => context.data.session.cost(sessionID) }
 
     function showVitals(sessionID: string) {
       history.ensure(sessionID)
@@ -73,9 +72,7 @@ export default Plugin.define({
                 Context: {number(usage().tokens)} tokens{usage().percent === undefined ? "" : ` (${usage().percent}% used)`}
               </text>}
             </Show>
-            <Show when={options.cost && context.data.session.cost(sessionID) > 0}>
-              <text fg={context.theme.text.muted}>Spent: {formatCost(context.data.session.cost(sessionID))}</text>
-            </Show>
+            <text fg={context.theme.text.muted}>Spent: {formatCost(context.data.session.cost(sessionID))}</text>
             <text fg={context.theme.text.muted}>Turns = delivered user messages. Steps = model calls, including a running step.</text>
             <text fg={context.theme.text.muted}>This session only; subagents have their own counters. Esc to close.</text>
           </box>

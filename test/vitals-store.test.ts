@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { createMemo, createRoot, createSignal } from "solid-js"
-import { footerSummary, parseOptions, sidebarRows } from "../src/format.ts"
+import { footerSummary, sidebarRows } from "../src/format.ts"
 import { VitalsStore } from "../src/vitals-store.ts"
 import { sampleVitals } from "./fixtures.ts"
 
@@ -36,21 +36,21 @@ test("layout, cost, and completeness updates only reformat the shared metrics", 
   const [width, setWidth] = createSignal(160)
   const [cost, setCost] = createSignal(0)
   const [complete, setComplete] = createSignal(true)
-  const options = parseOptions({})
   const view = createRoot((dispose) => {
     const metrics = store.observe("a")
     return {
-      summary: createMemo(() => footerSummary(metrics(), { width: width(), cost: cost(), complete: complete(), options })),
-      rows: createMemo(() => sidebarRows(metrics(), { cost: cost(), complete: complete(), options })),
+      summary: createMemo(() => footerSummary(metrics(), { width: width(), complete: complete() })),
+      rows: createMemo(() => sidebarRows(metrics(), { cost: cost(), complete: complete() })),
       dispose,
     }
   })
   assert.equal(reads, 1)
+  assert.deepEqual(view.rows().at(-1), { label: "Cost", value: "$0.00" })
   setWidth(16)
-  assert.equal(view.summary(), "1t 1s 185 total")
+  assert.equal(view.summary(), "1t · 1s · 185")
   setWidth(160)
   setCost(2.5)
-  assert.match(view.summary(), /\$2\.50$/)
+  assert.equal(view.summary(), "1 turn · 1 step · 185")
   assert.deepEqual(view.rows().at(-1), { label: "Cost", value: "$2.50" })
   setComplete(false)
   assert.match(view.summary(), /^~1 turn/)
