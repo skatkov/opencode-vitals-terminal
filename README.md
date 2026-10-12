@@ -173,6 +173,33 @@ CI runs the same install, type check, tests, and package preview on pushes and p
 
 API references: [CLI plugins](https://opencode.ai/v2/docs/build/plugins/cli/) · [CLI plugin configuration](https://opencode.ai/v2/docs/cli/plugins/).
 
+### Mutation testing
+
+[StrykerJS](https://stryker-mutator.io/docs/stryker-js/getting-started/) checks the tests by making small changes to production code and verifying that tests fail. Run it with the same Node 26.4.0-or-newer runtime used for development:
+
+```sh
+npm run test:mutation
+```
+
+If mise is not activated in your shell, use `mise exec -- npm run test:mutation`.
+
+Open `reports/mutation/index.html` for the interactive report; `reports/mutation/mutation.json` contains the machine-readable results. Reports and Stryker's temporary sandbox are ignored by git.
+
+`stryker.config.mjs` targets the logic in `src/**/*.ts`, including accounting, history, formatting, and reactive stores/views. It does not mutate tests or the host-loaded `index.ts` and `tui.tsx` entrypoints, which the unit suite does not load. The TAP runner uses the existing `node:test` tests unchanged, preserving Solid's `browser` condition and Node's TypeScript stripping, with coverage-based selection at the test-file level. Mutation testing is slower than `npm test`; up to four mutation workers run concurrently.
+
+Stryker is a development-only dependency. A scoped override keeps its transitive `qs` dependency on a patched release without changing the plugin's runtime dependencies.
+
+For a quicker configuration check or a focused run:
+
+```sh
+npm run test:mutation -- --dryRunOnly
+npm run test:mutation -- --mutate src/metrics.ts
+```
+
+No minimum mutation score is enforced initially (`thresholds.break` is `null`). Review surviving mutants in the report to identify missing assertions or equivalent changes before choosing a score gate.
+
+The separate **Mutation testing** GitHub Actions workflow runs on demand via **Run workflow** and uploads the reports as the `mutation-report` artifact. It does not slow down push/pull-request CI or publishing, and no Stryker dashboard credentials are needed.
+
 ## Publishing
 
 The initial release is `0.1.0`. From an npm account with permission to publish `opencode-vitals-terminal`:
