@@ -1,8 +1,9 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, createMemo, For, Match, Show, Switch, untrack } from "solid-js"
+import { createEffect, createMemo, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
 import { footerSummary, formatCost, parseOptions, sidebarRows } from "./src/format.ts"
 import { calculateVitals, mergeMessages, projectMessages } from "./src/metrics.ts"
+import { SidebarStore } from "./src/sidebar.ts"
 import { HistoryStore } from "./src/store.ts"
 
 const updates = [
@@ -20,6 +21,7 @@ export default Plugin.define({
   id: "opencode-vitals-terminal",
   setup(context) {
     const options = parseOptions(context.options)
+    const sidebar = new SidebarStore()
     const cached = (sessionID: string) => {
       const pending = new Set(context.data.session.pending.list(sessionID).map((item) => item.id))
       return projectMessages(context.data.session.message.list(sessionID).filter((message) => !pending.has(message.id)))
@@ -146,6 +148,7 @@ export default Plugin.define({
           if (!props.sessionID) return ""
           return footerSummary(vitals(props.sessionID), {
             width: Math.max(0, available() - (live() ? live().length + 3 : 0)),
+            sidebarVisible: sidebar.visible(props.sessionID),
             complete: history.get(props.sessionID)?.complete === true,
             cost: context.data.session.cost(props.sessionID),
             options,
@@ -200,6 +203,7 @@ export default Plugin.define({
       render: (props) => {
         createEffect(() => {
           const sessionID = props.sessionID
+          onCleanup(untrack(() => sidebar.mount(sessionID)))
           untrack(() => history.ensure(sessionID))
         })
         const rows = createMemo(() => sidebarRows(vitals(props.sessionID), {

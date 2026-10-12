@@ -42,14 +42,18 @@ export function sidebarRows(
 
 export function footerSummary(
   vitals: Vitals,
-  input: { width: number; complete: boolean; cost: number; options: Options },
+  input: { width: number; sidebarVisible?: boolean; complete: boolean; cost: number; options: Options },
 ): string {
+  const context = vitals.context ? compactNumber(vitals.context.tokens) : "–"
+  const percent = vitals.context?.percent === undefined ? "" : ` (${vitals.context.percent}%)`
+  if (input.sidebarVisible) {
+    const summary = `${context}${percent}`
+    return summary.length <= input.width ? summary : context
+  }
   const prefix = input.complete ? "" : "~"
   const turns = compactNumber(vitals.turns)
   const steps = compactNumber(vitals.steps)
   const total = `${prefix}${compactNumber(vitals.totalTokens)}`
-  const context = vitals.context ? compactNumber(vitals.context.tokens) : "–"
-  const percent = vitals.context?.percent === undefined ? "" : ` (${vitals.context.percent}%)`
   const cost = input.options.cost && input.cost > 0 ? formatCost(input.cost) : undefined
   const tokenParts = (percentage: boolean) => {
     const parts: string[] = []

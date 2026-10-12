@@ -20,7 +20,7 @@ The line automatically abbreviates on smaller terminals:
 8t · 42s · 320K total · 24K
 ```
 
-When OpenCode's right sidebar is visible, a **Vitals** section also shows the same metrics with exact counts:
+When OpenCode's right sidebar is visible, a **Vitals** section shows the full metrics with exact counts:
 
 ```text
 Vitals
@@ -31,7 +31,13 @@ Context: 24,000 (19%)
 Cost: $0.43
 ```
 
-The footer stays visible too; hiding the sidebar or narrowing the terminal does not remove the footer values. Both views share the same history and live updates.
+With the sidebar visible, the footer switches to a standard-style model-context summary, without repeating turns, steps, cumulative tokens, or cost:
+
+```text
+~/code/project                                                    24K (19%)
+```
+
+Hiding the sidebar or narrowing the terminal restores the full vitals footer. This follows the sidebar's actual visibility, including manual toggling, rather than just terminal width. Both views share the same history and live updates.
 
 Click the footer summary or sidebar vitals section, or run `/vitals`, for an input/output/reasoning/cache breakdown. `/vitals-refresh` rereads the session history if needed.
 
@@ -44,7 +50,7 @@ Click the footer summary or sidebar vitals section, or run `/vitals`, for an inp
 | **Details on demand** | Click the summary or run `/vitals` for exact counts and a token breakdown. |
 | **History-aware totals** | Read full history on resume and reconnect, and exclude reverted messages after undo. Incomplete totals are marked with `~`. |
 | **A footer that fits** | Abbreviate on narrow terminals while retaining the host's spinner, working directory, and editor-file display. |
-| **Sidebar vitals** | Show exact counts in the right sidebar when it is visible, without hiding or changing the footer. |
+| **Sidebar vitals** | Show exact counts in the right sidebar when it is visible, with a context-only footer. Restore the full footer when the sidebar is hidden. |
 
 ## Install
 
@@ -119,9 +125,9 @@ Use the package name (or your checkout's absolute path) in the object form when 
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `tokens` | `"both"` | `"both"`: total tokens and current context. `"context"`: the original token-count semantics, plus turns/steps. `"total"`: cumulative tokens only. |
-| `cost` | `true` | Show cost in the vitals sidebar and, when space permits, the footer. |
+| `cost` | `true` | Show cost in the vitals sidebar and, when space permits, the full vitals footer. |
 
-Both options apply to the footer and sidebar. The installation configuration disables only the duplicate built-in Context section; other sidebar content stays intact.
+Both options apply to the sidebar and the full vitals footer shown when the sidebar is hidden. When the sidebar is visible, the footer always shows model-context usage only, regardless of these options. The installation configuration disables only the duplicate built-in Context section; other sidebar content stays intact.
 
 ## What the numbers mean
 
@@ -154,7 +160,7 @@ npm test
 npm pack --dry-run
 ```
 
-The host loads the TypeScript/TSX entrypoints directly; no build is required. OpenTUI/Solid are peer dependencies supplied by the host. Local tests exercise accounting, pagination, deduplication, formatting, undo boundaries, concurrent reads, and cleanup without making model requests.
+The host loads the TypeScript/TSX entrypoints directly; no build is required. OpenTUI/Solid are peer dependencies supplied by the host. Local tests exercise accounting, pagination, deduplication, responsive formatting, sidebar lifecycle, undo boundaries, concurrent reads, and cleanup without making model requests.
 
 The plugin was also smoke-tested in the actual OpenCode 2.0.26 TUI at 160, 80, and 44 columns, including the `/vitals` dialog and live counter updates. Loading it did not require changing global configuration.
 

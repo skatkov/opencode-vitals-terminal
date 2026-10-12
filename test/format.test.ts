@@ -61,6 +61,52 @@ test("total-only mode omits the context field and cost can be disabled", () => {
   assert.equal(text, "1 turn · 1 step · 185 total")
 })
 
+test("visible sidebar restores a context-only footer without session counts, totals, or cost", () => {
+  const vitals = sampleVitals()
+  vitals.totalTokens = 549_700
+  vitals.context = { tokens: 38_700, percent: 10 }
+  const text = footerSummary(vitals, {
+    width: 160, sidebarVisible: true, complete: true, cost: 0.42, options: parseOptions({}),
+  })
+  assert.equal(text, "38.7K (10%)")
+})
+
+test("hidden sidebar retains the full vitals footer", () => {
+  assert.equal(footerSummary(sampleVitals(), {
+    width: 160, sidebarVisible: false, complete: true, cost: 0.42, options: parseOptions({}),
+  }), "1 turn · 1 step · 185 total · 185 · $0.42")
+})
+
+test("sidebar-visible footer keeps model context even with total-only tokens configured", () => {
+  assert.equal(footerSummary(sampleVitals(), {
+    width: 160, sidebarVisible: true, complete: false, cost: 0.42, options: parseOptions({ tokens: "total" }),
+  }), "185")
+})
+
+test("sidebar-visible footer shows a placeholder when model context is unavailable", () => {
+  const vitals = sampleVitals()
+  vitals.context = undefined
+  assert.equal(footerSummary(vitals, {
+    width: 160, sidebarVisible: true, complete: false, cost: 0, options: parseOptions({}),
+  }), "–")
+})
+
+test("context-only footer drops its percentage when available width is limited", () => {
+  const vitals = sampleVitals()
+  vitals.context = { tokens: 38_700, percent: 10 }
+  assert.equal(footerSummary(vitals, {
+    width: 5, sidebarVisible: true, complete: true, cost: 0, options: parseOptions({}),
+  }), "38.7K")
+})
+
+test("context-only footer keeps a known zero-percent estimate", () => {
+  const vitals = sampleVitals()
+  vitals.context = { tokens: 185, percent: 0 }
+  assert.equal(footerSummary(vitals, {
+    width: 160, sidebarVisible: true, complete: true, cost: 0, options: parseOptions({}),
+  }), "185 (0%)")
+})
+
 test("sidebar shows exact session counts, token usage, context percentage, and cost", () => {
   const vitals = sampleVitals()
   vitals.turns = 1_234
