@@ -218,7 +218,7 @@ test("Rubydex sidebar subtotals and children follow live counts and disappear wh
   }))
   assert.deepEqual(sidebar.rows().slice(5), [
     { label: "Tool calls", value: "~9" },
-    { label: "  rubydex", value: "~7" },
+    { label: "  rubydex (subtotal)", value: "~7" },
     { label: "    get_declaration", value: "~4" },
     { label: "    get_descendants", value: "~3" },
     { label: "  execute", value: "~2" },
@@ -226,7 +226,7 @@ test("Rubydex sidebar subtotals and children follow live counts and disappear wh
   await new Promise((done) => setImmediate(done))
   assert.deepEqual(sidebar.rows().slice(5), [
     { label: "Tool calls", value: "9" },
-    { label: "  rubydex", value: "7" },
+    { label: "  rubydex (subtotal)", value: "7" },
     { label: "    get_declaration", value: "4" },
     { label: "    get_descendants", value: "3" },
     { label: "  execute", value: "2" },
@@ -239,7 +239,7 @@ test("Rubydex sidebar subtotals and children follow live counts and disappear wh
   assert.deepEqual(sidebar.rows().slice(5), [
     { label: "Tool calls", value: "3" },
     { label: "  execute", value: "2" },
-    { label: "  rubydex", value: "1" },
+    { label: "  rubydex (subtotal)", value: "1" },
     { label: "    get_descendants", value: "1" },
   ])
   fixture.setSource({ ...fixture.source(), toolCalls: 2, tools: [{ name: "execute", calls: 2 }] })

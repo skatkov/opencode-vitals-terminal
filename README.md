@@ -34,7 +34,7 @@ Cost: $0.43
 Tool calls: 46
   read: 18
   grep: 12
-  rubydex: 10
+  rubydex (subtotal): 10
     get_declaration: 6
     get_descendants: 4
   shell: 6
@@ -119,7 +119,7 @@ There are no display options to configure. Turns, steps, cumulative tokens, cont
 
 Cumulative total tokens and recorded cost are shown in the sidebar and `/vitals`, never in the footer. Cost includes `$0.00`. With the sidebar hidden, the footer shows turns, steps, and current context usage. With the sidebar visible, it shows only model-context usage to avoid repeating the sidebar metrics.
 
-Tool-call statistics appear **only in the sidebar**, not in the footer or `/vitals` dialog. Rubydex tools appear under a `rubydex` subtotal, with individual tool names and counts indented underneath; child labels omit the repeated `rubydex.` prefix. Other tools retain their exact recorded names. Top-level rows are ordered by most calls first (using the Rubydex subtotal) and alphabetically for ties; Rubydex children follow the same ordering. Code Mode calls recorded in OpenCode's `toolCalls` metadata are included alongside the outer `execute` call. Subtotals do not add calls to the session total. Sessions without calls show `Tool calls: 0`. Incomplete history marks the total, subtotal, and per-tool counts with `~`.
+Tool-call statistics appear **only in the sidebar**, not in the footer or `/vitals` dialog. Rubydex tools appear under a `rubydex (subtotal)` heading, distinct from any actual tool named `rubydex`, with individual tool names and counts indented underneath; child labels omit the repeated `rubydex.` prefix. Other tools retain their exact recorded names. Top-level rows are ordered by most calls first (using the Rubydex subtotal) and alphabetically for ties; Rubydex children follow the same ordering. Code Mode calls recorded in OpenCode's `toolCalls` metadata are included alongside the outer `execute` call. Subtotals do not add calls to the session total. Sessions without calls show `Tool calls: 0`. Incomplete history marks the total, subtotal, and per-tool counts with `~`.
 
 ## What the numbers mean
 
