@@ -146,6 +146,14 @@ Remove this plugin's entry, `-opencode.prompt.footer`, and `-opencode.sidebar.co
 
 ## Development
 
+### Code Mode trace compatibility
+
+OpenCode's tool metadata is a generic JSON object; the public API does not specify a typed `toolCalls` trace or guarantee its ordering. Nested-call accounting supports `execute` snapshots whose `metadata.toolCalls` is an append-only array of records with a nonempty string `tool` name. Existing array positions must identify the same invocation as statuses change and new calls are appended. The outer tool-call ID and original array index together identify each nested call; malformed entries are skipped without renumbering later calls.
+
+Missing or non-array traces contribute only the outer `execute` call. A producer that reorders or reuses trace positions requires an adapter change; input/output content is not retained to guess invocation identity. Projection tests cover the expected trace shape. These tests do not establish a producer-side ordering guarantee.
+
+### Commands
+
 ```sh
 npm ci
 npm run check

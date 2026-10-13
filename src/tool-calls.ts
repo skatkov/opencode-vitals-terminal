@@ -15,8 +15,9 @@ export function projectToolCalls(content: readonly SessionMessageAssistant["cont
     tools[callIdentity(part.id, null)] = part.name
     const calls = part.name === "execute" ? part.state.metadata?.toolCalls : undefined
     if (!Array.isArray(calls)) continue
-    // Code Mode's trace has no call IDs. Preserve its append-only indexes even
-    // when malformed records are skipped, without keeping inputs or outputs.
+    // Compatibility contract: Code Mode's trace has no call IDs, so this adapter
+    // requires append-only, stable indexes (not guaranteed by the generic API
+    // metadata type). Keep original indexes even when malformed records are skipped.
     calls.forEach((call, index) => {
       if (typeof call !== "object" || call === null || !("tool" in call) || typeof call.tool !== "string" || !call.tool) return
       tools[callIdentity(part.id, index)] = call.tool
