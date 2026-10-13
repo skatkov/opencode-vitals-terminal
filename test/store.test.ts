@@ -3,9 +3,9 @@ import { test } from "node:test"
 import type { SessionMessagesResponse } from "@opencode/client"
 import { createComputed, createRoot } from "solid-js"
 import { unwrap } from "solid-js/store"
-import { projectMessages, type MetricMessage } from "../src/metrics.ts"
+import { calculateVitals, projectMessages, type MetricMessage } from "../src/metrics.ts"
 import { HistoryStore } from "../src/store.ts"
-import { assistant, user } from "./fixtures.ts"
+import { assistant, tool, user } from "./fixtures.ts"
 
 test("tracked sessions stay separate and untracked background work is ignored", async () => {
   const store = new HistoryStore(async ({ sessionID }) => ({
@@ -17,6 +17,49 @@ test("tracked sessions stay separate and untracked background work is ignored", 
   assert.equal(store.get("a")!.messages[0].type, "user")
   assert.equal(store.get("b")!.messages[0].type, "assistant")
   assert.equal(store.get("untracked"), undefined)
+  store.dispose()
+})
+
+test("live tool calls survive pending history, repeated updates, and eviction from the recent cache", async () => {
+  let resolve!: (response: SessionMessagesResponse) => void
+  let cached: MetricMessage[] = []
+  const store = new HistoryStore(() => new Promise((done) => { resolve = done }), () => cached)
+  const loading = store.refresh("a")
+  cached = projectMessages([assistant("msg_002", { content: [tool("call-a", "read")] })])
+  store.update("a")
+  store.update("a")
+  resolve({ data: [user()], cursor: {} })
+  await loading
+  assert.equal(calculateVitals(store.get("a")!.messages).toolCalls, 1)
+  cached = projectMessages([assistant("msg_003", { content: [tool("call-b", "grep")] })])
+  store.update("a")
+  cached = []
+  store.update("a")
+  assert.equal(calculateVitals(store.get("a")!.messages).toolCalls, 2)
+  store.dispose()
+})
+
+test("reconnect and committed undo replace tool totals with the authoritative timeline", async () => {
+  let data = [
+    assistant("msg_002", { content: [tool("call-a", "read")] }),
+    assistant("msg_003", { content: [tool("call-b", "grep")] }),
+  ]
+  const store = new HistoryStore(async () => ({ data, cursor: {} }), () => [])
+  await store.refresh("a")
+  assert.equal(calculateVitals(store.get("a")!.messages).toolCalls, 2)
+  store.reconnect()
+  await new Promise((done) => setImmediate(done))
+  assert.equal(calculateVitals(store.get("a")!.messages).toolCalls, 2)
+  data = data.slice(0, 1)
+  store.truncate("a", "msg_003")
+  assert.deepEqual(calculateVitals(store.get("a")!.messages).tools, [{ name: "read", calls: 1 }])
+  await new Promise((done) => setImmediate(done))
+  assert.equal(store.get("a")!.complete, true)
+  assert.equal(calculateVitals(store.get("a")!.messages).toolCalls, 1)
+  data = []
+  store.reconnect()
+  await new Promise((done) => setImmediate(done))
+  assert.equal(calculateVitals(store.get("a")!.messages).toolCalls, 0)
   store.dispose()
 })
 

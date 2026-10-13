@@ -52,7 +52,7 @@ test("production sidebar effects switch the footer on mount, cleanup, and remoun
   setWidth(5)
   assert.equal(footer.summary(), "38.7K")
   fixture.setCost(2.5)
-  assert.deepEqual(sidebar.rows().at(-1), { label: "Cost", value: "$2.50" })
+  assert.deepEqual(sidebar.rows().find((row) => row.label === "Cost"), { label: "Cost", value: "$2.50" })
   const history = fixture.context.history.get("a")
   assert.ok(history)
   history.complete = false
@@ -144,16 +144,110 @@ test("cumulative tokens and zero recorded cost stay in the sidebar, never the fo
     dispose,
   }))
   assert.equal(footer.summary(), "38.7K (10%)")
-  assert.deepEqual(sidebar.rows().map((row) => row.label), ["Turns", "Steps", "Total tokens", "Context", "Cost"])
+  assert.deepEqual(sidebar.rows().map((row) => row.label), ["Turns", "Steps", "Total tokens", "Context", "Cost", "Tool calls"])
   assert.deepEqual(sidebar.rows()[2], { label: "Total tokens", value: "549,700" })
-  assert.deepEqual(sidebar.rows().at(-1), { label: "Cost", value: "$0.00" })
+  assert.deepEqual(sidebar.rows().find((row) => row.label === "Cost"), { label: "Cost", value: "$0.00" })
   fixture.setCost(2.5)
-  assert.deepEqual(sidebar.rows().at(-1), { label: "Cost", value: "$2.50" })
+  assert.deepEqual(sidebar.rows().find((row) => row.label === "Cost"), { label: "Cost", value: "$2.50" })
   assert.equal(footer.summary(), "38.7K (10%)")
   sidebar.dispose()
   assert.equal(footer.summary(), "1 turn · 1 step · 38.7K (10%)")
   assert.equal(fixture.calculations.get("a"), 1)
   footer.dispose()
+  fixture.dispose()
+})
+
+test("tool usage updates live only in the sidebar, including partial history and remounts", async () => {
+  const fixture = views()
+  const footer = createRoot((dispose) => ({
+    summary: createFooterSummary(fixture.context, () => "a", () => 160),
+    dispose,
+  }))
+  const sidebar = createRoot((dispose) => ({
+    rows: createSidebarRows(fixture.context, () => "a"),
+    dispose,
+  }))
+  assert.deepEqual(sidebar.rows().at(-1), { label: "Tool calls", value: "~0" })
+  fixture.setSource({ ...fixture.source(), toolCalls: 3, tools: [{ name: "read", calls: 2 }, { name: "grep", calls: 1 }] })
+  assert.deepEqual(sidebar.rows().slice(5), [
+    { label: "Tool calls", value: "~3" },
+    { label: "  read", value: "~2" },
+    { label: "  grep", value: "~1" },
+  ])
+  await new Promise((done) => setImmediate(done))
+  assert.deepEqual(sidebar.rows().slice(5), [
+    { label: "Tool calls", value: "3" },
+    { label: "  read", value: "2" },
+    { label: "  grep", value: "1" },
+  ])
+  assert.equal(footer.summary(), "38.7K (10%)")
+  sidebar.dispose()
+  assert.equal(footer.summary(), "1 turn · 1 step · 38.7K (10%)")
+  fixture.setSource({ ...fixture.source(), toolCalls: 4, tools: [{ name: "read", calls: 3 }, { name: "grep", calls: 1 }] })
+  assert.equal(footer.summary(), "1 turn · 1 step · 38.7K (10%)")
+  const remounted = createRoot((dispose) => ({
+    rows: createSidebarRows(fixture.context, () => "a"),
+    dispose,
+  }))
+  assert.deepEqual(remounted.rows().slice(5), [
+    { label: "Tool calls", value: "4" },
+    { label: "  read", value: "3" },
+    { label: "  grep", value: "1" },
+  ])
+  assert.equal(fixture.reads(), 1)
+  assert.equal(fixture.calculations.get("a"), 3)
+  remounted.dispose()
+  footer.dispose()
+  fixture.dispose()
+})
+
+test("Rubydex sidebar subtotals and children follow live counts and disappear when calls are removed", async () => {
+  const fixture = views()
+  fixture.setSource({
+    ...fixture.source(),
+    toolCalls: 9,
+    tools: [
+      { name: "rubydex.get_declaration", calls: 4 },
+      { name: "rubydex.get_descendants", calls: 3 },
+      { name: "execute", calls: 2 },
+    ],
+  })
+  const sidebar = createRoot((dispose) => ({
+    rows: createSidebarRows(fixture.context, () => "a"),
+    dispose,
+  }))
+  assert.deepEqual(sidebar.rows().slice(5), [
+    { label: "Tool calls", value: "~9" },
+    { label: "  rubydex", value: "~7" },
+    { label: "    get_declaration", value: "~4" },
+    { label: "    get_descendants", value: "~3" },
+    { label: "  execute", value: "~2" },
+  ])
+  await new Promise((done) => setImmediate(done))
+  assert.deepEqual(sidebar.rows().slice(5), [
+    { label: "Tool calls", value: "9" },
+    { label: "  rubydex", value: "7" },
+    { label: "    get_declaration", value: "4" },
+    { label: "    get_descendants", value: "3" },
+    { label: "  execute", value: "2" },
+  ])
+  fixture.setSource({
+    ...fixture.source(),
+    toolCalls: 3,
+    tools: [{ name: "execute", calls: 2 }, { name: "rubydex.get_descendants", calls: 1 }],
+  })
+  assert.deepEqual(sidebar.rows().slice(5), [
+    { label: "Tool calls", value: "3" },
+    { label: "  execute", value: "2" },
+    { label: "  rubydex", value: "1" },
+    { label: "    get_descendants", value: "1" },
+  ])
+  fixture.setSource({ ...fixture.source(), toolCalls: 2, tools: [{ name: "execute", calls: 2 }] })
+  assert.deepEqual(sidebar.rows().slice(5), [
+    { label: "Tool calls", value: "2" },
+    { label: "  execute", value: "2" },
+  ])
+  sidebar.dispose()
   fixture.dispose()
 })
 

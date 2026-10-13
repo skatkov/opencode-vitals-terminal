@@ -1,7 +1,8 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { readHistory } from "../src/history.ts"
-import { assistant, user } from "./fixtures.ts"
+import { calculateVitals } from "../src/metrics.ts"
+import { assistant, tool, user } from "./fixtures.ts"
 
 test("history follows every page and uses order only on the first request", async () => {
   const inputs: unknown[] = []
@@ -18,6 +19,17 @@ test("history follows every page and uses order only on the first request", asyn
     { sessionID: "session-1", limit: 200, cursor: "next-page" },
   ])
   assert.deepEqual(messages.map((message) => message.id), ["msg_001", "msg_002"])
+})
+
+test("tool totals span all history pages without duplicating overlapping calls", async () => {
+  const first = assistant("msg_002", { content: [tool("call-a", "read")] })
+  const second = assistant("msg_003", { content: [tool("call-b", "grep"), tool("call-c", "read")] })
+  const messages = await readHistory(async (input) => input.cursor
+    ? { data: [first, second], cursor: {} }
+    : { data: [first], cursor: { next: "page-2" } }, "a", new AbortController().signal)
+  const metrics = calculateVitals(messages)
+  assert.equal(metrics.toolCalls, 3)
+  assert.deepEqual(metrics.tools, [{ name: "read", calls: 2 }, { name: "grep", calls: 1 }])
 })
 
 test("overlapping pages do not inflate counts", async () => {

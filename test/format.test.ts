@@ -102,6 +102,7 @@ test("sidebar shows exact session counts, token usage, context percentage, and c
     { label: "Total tokens", value: "549,700" },
     { label: "Context", value: "38,700 (10%)" },
     { label: "Cost", value: "$0.42" },
+    { label: "Tool calls", value: "0" },
   ])
 })
 
@@ -112,13 +113,14 @@ test("sidebar marks partial counters without marking current context as partial"
     { label: "Total tokens", value: "~185" },
     { label: "Context", value: "185" },
     { label: "Cost", value: "$0.00" },
+    { label: "Tool calls", value: "~0" },
   ])
 })
 
 test("sidebar retains a placeholder before any context usage is available", () => {
   const vitals = sampleVitals()
   vitals.context = undefined
-  assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).slice(-2), [
+  assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).slice(3, 5), [
     { label: "Context", value: "–" },
     { label: "Cost", value: "$0.00" },
   ])
@@ -133,15 +135,124 @@ test("sidebar always includes total tokens, context, and zero recorded cost", ()
     { label: "Total tokens", value: "185" },
     { label: "Context", value: "185" },
     { label: "Cost", value: "$0.00" },
+    { label: "Tool calls", value: "0" },
   ])
 })
 
 test("sidebar preserves a known zero-percent context estimate", () => {
   const vitals = sampleVitals()
   vitals.context = { tokens: 185, percent: 0 }
-  assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).at(-2), {
+  assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 })[3], {
     label: "Context", value: "185 (0%)",
   })
+})
+
+test("sidebar shows exact total tool calls and an indented breakdown, marking incomplete counts", () => {
+  const vitals = {
+    ...sampleVitals(),
+    toolCalls: 1_235,
+    tools: [{ name: "read", calls: 1_234 }, { name: "mcp.server.search", calls: 1 }],
+  }
+  assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).slice(5), [
+    { label: "Tool calls", value: "1,235" },
+    { label: "  read", value: "1,234" },
+    { label: "  mcp.server.search", value: "1" },
+  ])
+  assert.deepEqual(sidebarRows(vitals, { complete: false, cost: 0 }).slice(5), [
+    { label: "Tool calls", value: "~1,235" },
+    { label: "  read", value: "~1,234" },
+    { label: "  mcp.server.search", value: "~1" },
+  ])
+})
+
+test("sidebar groups Rubydex tools under an exact subtotal without changing accounting", () => {
+  const vitals = {
+    ...sampleVitals(),
+    toolCalls: 4_800,
+    tools: [
+      { name: "read", calls: 1_500 },
+      { name: "rubydex.get_declaration", calls: 1_000 },
+      { name: "execute", calls: 900 },
+      { name: "rubydex.get_descendants", calls: 800 },
+      { name: "shell", calls: 600 },
+    ],
+  }
+  const before = structuredClone(vitals)
+  assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).slice(5), [
+    { label: "Tool calls", value: "4,800" },
+    { label: "  rubydex", value: "1,800" },
+    { label: "    get_declaration", value: "1,000" },
+    { label: "    get_descendants", value: "800" },
+    { label: "  read", value: "1,500" },
+    { label: "  execute", value: "900" },
+    { label: "  shell", value: "600" },
+  ])
+  assert.deepEqual(sidebarRows(vitals, { complete: false, cost: 0 }).slice(5), [
+    { label: "Tool calls", value: "~4,800" },
+    { label: "  rubydex", value: "~1,800" },
+    { label: "    get_declaration", value: "~1,000" },
+    { label: "    get_descendants", value: "~800" },
+    { label: "  read", value: "~1,500" },
+    { label: "  execute", value: "~900" },
+    { label: "  shell", value: "~600" },
+  ])
+  assert.deepEqual(vitals, before)
+})
+
+test("sidebar sorts the Rubydex subtotal with other tools and preserves child ordering", () => {
+  const vitals = {
+    ...sampleVitals(),
+    toolCalls: 42,
+    tools: [
+      { name: "execute", calls: 14 },
+      { name: "read", calls: 14 },
+      { name: "rubydex.get_declaration", calls: 5 },
+      { name: "rubydex.get_descendants", calls: 5 },
+      { name: "rubydex.get_file_declarations", calls: 4 },
+    ],
+  }
+  assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).slice(5), [
+    { label: "Tool calls", value: "42" },
+    { label: "  execute", value: "14" },
+    { label: "  read", value: "14" },
+    { label: "  rubydex", value: "14" },
+    { label: "    get_declaration", value: "5" },
+    { label: "    get_descendants", value: "5" },
+    { label: "    get_file_declarations", value: "4" },
+  ])
+})
+
+test("sidebar only groups the exact Rubydex namespace, including a single child", () => {
+  const vitals = {
+    ...sampleVitals(),
+    toolCalls: 6,
+    tools: [
+      { name: "Rubydex.get_declaration", calls: 1 },
+      { name: "mcp.server.search", calls: 1 },
+      { name: "rubydex", calls: 1 },
+      { name: "rubydex.get_declaration", calls: 1 },
+      { name: "rubydex_other.get_declaration", calls: 1 },
+      { name: "rubydexish", calls: 1 },
+    ],
+  }
+  assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).slice(5), [
+    { label: "Tool calls", value: "6" },
+    { label: "  mcp.server.search", value: "1" },
+    { label: "  rubydex", value: "1" },
+    { label: "  rubydex", value: "1" },
+    { label: "    get_declaration", value: "1" },
+    { label: "  rubydex_other.get_declaration", value: "1" },
+    { label: "  Rubydex.get_declaration", value: "1" },
+    { label: "  rubydexish", value: "1" },
+  ])
+})
+
+test("tool totals and names never appear in the footer at any width", () => {
+  const vitals = sampleVitals()
+  const before = [160, 32, 16, 0].map((width) => footerSummary(vitals, { width, complete: true }))
+  vitals.toolCalls = 999
+  vitals.tools = [{ name: "mcp.server.search", calls: 999 }]
+  assert.deepEqual([160, 32, 16, 0].map((width) => footerSummary(vitals, { width, complete: true })), before)
 })
 
 test("context summaries retain the percentage at the exact width boundary", () => {
