@@ -201,14 +201,16 @@ test("tool usage updates live only in the sidebar, including partial history and
   fixture.dispose()
 })
 
-test("Rubydex sidebar subtotals and children follow live counts and disappear when calls are removed", async () => {
+test("namespace sidebar subtotals and children follow live counts and disappear when calls are removed", async () => {
   const fixture = views()
   fixture.setSource({
     ...fixture.source(),
-    toolCalls: 9,
+    toolCalls: 15,
     tools: [
       { name: "rubydex.get_declaration", calls: 4 },
       { name: "rubydex.get_descendants", calls: 3 },
+      { name: "posh.posh_search", calls: 5 },
+      { name: "posh.posh_docsets", calls: 1 },
       { name: "execute", calls: 2 },
     ],
   })
@@ -217,30 +219,36 @@ test("Rubydex sidebar subtotals and children follow live counts and disappear wh
     dispose,
   }))
   assert.deepEqual(sidebar.rows().slice(5), [
-    { label: "Tool calls", value: "~9" },
+    { label: "Tool calls", value: "~15" },
     { label: "  rubydex (subtotal)", value: "~7" },
     { label: "    get_declaration", value: "~4" },
     { label: "    get_descendants", value: "~3" },
+    { label: "  posh (subtotal)", value: "~6" },
+    { label: "    posh_search", value: "~5" },
+    { label: "    posh_docsets", value: "~1" },
     { label: "  execute", value: "~2" },
   ])
   await new Promise((done) => setImmediate(done))
   assert.deepEqual(sidebar.rows().slice(5), [
-    { label: "Tool calls", value: "9" },
+    { label: "Tool calls", value: "15" },
     { label: "  rubydex (subtotal)", value: "7" },
     { label: "    get_declaration", value: "4" },
     { label: "    get_descendants", value: "3" },
+    { label: "  posh (subtotal)", value: "6" },
+    { label: "    posh_search", value: "5" },
+    { label: "    posh_docsets", value: "1" },
     { label: "  execute", value: "2" },
   ])
   fixture.setSource({
     ...fixture.source(),
-    toolCalls: 3,
-    tools: [{ name: "execute", calls: 2 }, { name: "rubydex.get_descendants", calls: 1 }],
+    toolCalls: 4,
+    tools: [{ name: "execute", calls: 2 }, { name: "posh.posh_search", calls: 2 }],
   })
   assert.deepEqual(sidebar.rows().slice(5), [
-    { label: "Tool calls", value: "3" },
+    { label: "Tool calls", value: "4" },
     { label: "  execute", value: "2" },
-    { label: "  rubydex (subtotal)", value: "1" },
-    { label: "    get_descendants", value: "1" },
+    { label: "  posh (subtotal)", value: "2" },
+    { label: "    posh_search", value: "2" },
   ])
   fixture.setSource({ ...fixture.source(), toolCalls: 2, tools: [{ name: "execute", calls: 2 }] })
   assert.deepEqual(sidebar.rows().slice(5), [
