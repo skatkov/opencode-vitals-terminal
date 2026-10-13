@@ -21,9 +21,7 @@ function events() {
   return { data: { on }, emit: (event: OpenCodeEvent) => { emitter.emit(event.type, event) } }
 }
 
-async function flushEvents() {
-  await new Promise<void>((done) => queueMicrotask(done))
-}
+const flushEvents = () => new Promise<void>((done) => queueMicrotask(done))
 
 test("tool events read the updated cache and drive sidebar counts through production accounting", async (t) => {
   const bus = events()
