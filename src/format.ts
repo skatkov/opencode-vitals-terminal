@@ -1,4 +1,5 @@
 import type { Vitals } from "./metrics.ts"
+import { toolBreakdown } from "./tool-breakdown.ts"
 
 export function compactNumber(value: number): string {
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)
@@ -16,16 +17,6 @@ export function sidebarRows(
   const number = (value: number) => value.toLocaleString("en-US")
   const context = vitals.context ? number(vitals.context.tokens) : "–"
   const percent = vitals.context?.percent === undefined ? "" : ` (${vitals.context.percent}%)`
-  const rubydexPrefix = "rubydex."
-  const rubydex: Vitals["tools"] = []
-  const groups: { name: string; calls: number; children: Vitals["tools"] }[] = []
-  for (const tool of vitals.tools) {
-    if (tool.name.startsWith(rubydexPrefix)) rubydex.push(tool)
-    else groups.push({ ...tool, children: [] })
-  }
-  if (rubydex.length) {
-    groups.push({ name: "rubydex", calls: rubydex.reduce((total, tool) => total + tool.calls, 0), children: rubydex })
-  }
   return [
     { label: "Turns", value: `${prefix}${number(vitals.turns)}` },
     { label: "Steps", value: `${prefix}${number(vitals.steps)}` },
@@ -33,13 +24,7 @@ export function sidebarRows(
     { label: "Context", value: `${context}${percent}` },
     { label: "Cost", value: formatCost(input.cost) },
     { label: "Tool calls", value: `${prefix}${number(vitals.toolCalls)}` },
-    ...groups.toSorted((left, right) => right.calls - left.calls || left.name.localeCompare(right.name))
-      .flatMap((group) => [
-        { label: `  ${group.name}`, value: `${prefix}${number(group.calls)}` },
-        ...group.children.map((tool) => ({
-          label: `    ${tool.name.slice(rubydexPrefix.length)}`, value: `${prefix}${number(tool.calls)}`,
-        })),
-      ]),
+    ...toolBreakdown(vitals.tools).map((tool) => ({ label: tool.label, value: `${prefix}${number(tool.calls)}` })),
   ]
 }
 

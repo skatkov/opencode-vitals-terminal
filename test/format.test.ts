@@ -180,7 +180,7 @@ test("sidebar groups Rubydex tools under an exact subtotal without changing acco
   const before = structuredClone(vitals)
   assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).slice(5), [
     { label: "Tool calls", value: "4,800" },
-    { label: "  rubydex", value: "1,800" },
+    { label: "  rubydex (subtotal)", value: "1,800" },
     { label: "    get_declaration", value: "1,000" },
     { label: "    get_descendants", value: "800" },
     { label: "  read", value: "1,500" },
@@ -189,7 +189,7 @@ test("sidebar groups Rubydex tools under an exact subtotal without changing acco
   ])
   assert.deepEqual(sidebarRows(vitals, { complete: false, cost: 0 }).slice(5), [
     { label: "Tool calls", value: "~4,800" },
-    { label: "  rubydex", value: "~1,800" },
+    { label: "  rubydex (subtotal)", value: "~1,800" },
     { label: "    get_declaration", value: "~1,000" },
     { label: "    get_descendants", value: "~800" },
     { label: "  read", value: "~1,500" },
@@ -215,7 +215,7 @@ test("sidebar sorts the Rubydex subtotal with other tools and preserves child or
     { label: "Tool calls", value: "42" },
     { label: "  execute", value: "14" },
     { label: "  read", value: "14" },
-    { label: "  rubydex", value: "14" },
+    { label: "  rubydex (subtotal)", value: "14" },
     { label: "    get_declaration", value: "5" },
     { label: "    get_descendants", value: "5" },
     { label: "    get_file_declarations", value: "4" },
@@ -239,7 +239,7 @@ test("sidebar only groups the exact Rubydex namespace, including a single child"
     { label: "Tool calls", value: "6" },
     { label: "  mcp.server.search", value: "1" },
     { label: "  rubydex", value: "1" },
-    { label: "  rubydex", value: "1" },
+    { label: "  rubydex (subtotal)", value: "1" },
     { label: "    get_declaration", value: "1" },
     { label: "  rubydex_other.get_declaration", value: "1" },
     { label: "  Rubydex.get_declaration", value: "1" },
