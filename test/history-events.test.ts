@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { EventEmitter } from "node:events"
 import { test } from "node:test"
 import type { JsonValue, OpenCodeEvent, SessionMessageInfo, SessionToolProgress } from "@opencode/client"
 import type { Data } from "@opencode/plugin/tui/context"
@@ -12,16 +13,12 @@ import { createSidebarRows } from "../src/vitals-views.ts"
 import { assistant, tool } from "./fixtures.ts"
 
 function events() {
-  const listeners = new Set<(event: OpenCodeEvent) => void>()
+  const emitter = new EventEmitter()
   const on: Data["on"] = (type, handler) => {
-    const listener = (event: OpenCodeEvent) => {
-      // TypeScript cannot narrow a union against the generic subscription type.
-      if (event.type === type) handler(event as Parameters<typeof handler>[0])
-    }
-    listeners.add(listener)
-    return () => { listeners.delete(listener) }
+    emitter.on(type, handler)
+    return () => { emitter.off(type, handler) }
   }
-  return { data: { on }, emit: (event: OpenCodeEvent) => { for (const listener of listeners) listener(event) } }
+  return { data: { on }, emit: (event: OpenCodeEvent) => { emitter.emit(event.type, event) } }
 }
 
 async function flushEvents() {
