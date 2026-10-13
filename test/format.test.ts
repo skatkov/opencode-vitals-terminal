@@ -156,12 +156,14 @@ test("sidebar shows exact total tool calls and an indented breakdown, marking in
   assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).slice(5), [
     { label: "Tool calls", value: "1,235" },
     { label: "  read", value: "1,234" },
-    { label: "  mcp.server.search", value: "1" },
+    { label: "  mcp (subtotal)", value: "1" },
+    { label: "    server.search", value: "1" },
   ])
   assert.deepEqual(sidebarRows(vitals, { complete: false, cost: 0 }).slice(5), [
     { label: "Tool calls", value: "~1,235" },
     { label: "  read", value: "~1,234" },
-    { label: "  mcp.server.search", value: "~1" },
+    { label: "  mcp (subtotal)", value: "~1" },
+    { label: "    server.search", value: "~1" },
   ])
 })
 
@@ -222,29 +224,56 @@ test("sidebar sorts the Rubydex subtotal with other tools and preserves child or
   ])
 })
 
-test("sidebar only groups the exact Rubydex namespace, including a single child", () => {
+test("sidebar groups exact namespaces case-sensitively and leaves plain names separate", () => {
   const vitals = {
     ...sampleVitals(),
-    toolCalls: 6,
+    toolCalls: 21,
     tools: [
-      { name: "Rubydex.get_declaration", calls: 1 },
-      { name: "mcp.server.search", calls: 1 },
-      { name: "rubydex", calls: 1 },
-      { name: "rubydex.get_declaration", calls: 1 },
-      { name: "rubydex_other.get_declaration", calls: 1 },
+      { name: "Rubydex.get_declaration", calls: 6 },
+      { name: "mcp.server.search", calls: 5 },
+      { name: "rubydex", calls: 4 },
+      { name: "rubydex.get_declaration", calls: 3 },
+      { name: "rubydex_other.get_declaration", calls: 2 },
       { name: "rubydexish", calls: 1 },
     ],
   }
   assert.deepEqual(sidebarRows(vitals, { complete: true, cost: 0 }).slice(5), [
-    { label: "Tool calls", value: "6" },
-    { label: "  mcp.server.search", value: "1" },
-    { label: "  rubydex", value: "1" },
-    { label: "  rubydex (subtotal)", value: "1" },
-    { label: "    get_declaration", value: "1" },
-    { label: "  rubydex_other.get_declaration", value: "1" },
-    { label: "  Rubydex.get_declaration", value: "1" },
+    { label: "Tool calls", value: "21" },
+    { label: "  Rubydex (subtotal)", value: "6" },
+    { label: "    get_declaration", value: "6" },
+    { label: "  mcp (subtotal)", value: "5" },
+    { label: "    server.search", value: "5" },
+    { label: "  rubydex", value: "4" },
+    { label: "  rubydex (subtotal)", value: "3" },
+    { label: "    get_declaration", value: "3" },
+    { label: "  rubydex_other (subtotal)", value: "2" },
+    { label: "    get_declaration", value: "2" },
     { label: "  rubydexish", value: "1" },
   ])
+})
+
+test("sidebar marks every namespace subtotal and child as incomplete without adding to accounting", () => {
+  const vitals = {
+    ...sampleVitals(),
+    toolCalls: 7,
+    tools: [
+      { name: "rubydex.get_declaration", calls: 2 },
+      { name: "posh.posh_search", calls: 3 },
+      { name: "posh.posh_docsets", calls: 1 },
+      { name: "read", calls: 1 },
+    ],
+  }
+  const before = structuredClone(vitals)
+  assert.deepEqual(sidebarRows(vitals, { complete: false, cost: 0 }).slice(5), [
+    { label: "Tool calls", value: "~7" },
+    { label: "  posh (subtotal)", value: "~4" },
+    { label: "    posh_search", value: "~3" },
+    { label: "    posh_docsets", value: "~1" },
+    { label: "  rubydex (subtotal)", value: "~2" },
+    { label: "    get_declaration", value: "~2" },
+    { label: "  read", value: "~1" },
+  ])
+  assert.deepEqual(vitals, before)
 })
 
 test("tool totals and names never appear in the footer at any width", () => {

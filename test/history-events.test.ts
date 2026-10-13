@@ -81,6 +81,7 @@ test("tool events read the updated cache and drive sidebar counts through produc
   const completedCalls: JsonValue[] = [
     { tool: "rubydex.codebase_stats", status: "completed", output: "private output" },
     { tool: "rubydex.codebase_stats", status: "error", input: "private input" },
+    { tool: "posh.posh_search", status: "completed", output: "private output" },
   ]
   cached = [assistant("msg_002", { content: [tool("call-a", "execute", {
     state: { status: "completed", input: {}, content: [{ type: "text", text: "private result" }], metadata: { toolCalls: completedCalls } },
@@ -95,10 +96,12 @@ test("tool events read the updated cache and drive sidebar counts through produc
   })
   await flushEvents()
   assert.deepEqual(view.rows().slice(5), [
-    { label: "Tool calls", value: "3" },
+    { label: "Tool calls", value: "4" },
     { label: "  rubydex (subtotal)", value: "2" },
     { label: "    codebase_stats", value: "2" },
     { label: "  execute", value: "1" },
+    { label: "  posh (subtotal)", value: "1" },
+    { label: "    posh_search", value: "1" },
   ])
 
   cached = [assistant("msg_003", { content: [tool("call-b", "grep", {
@@ -114,11 +117,13 @@ test("tool events read the updated cache and drive sidebar counts through produc
   })
   await flushEvents()
   assert.deepEqual(view.rows().slice(5), [
-    { label: "Tool calls", value: "4" },
+    { label: "Tool calls", value: "5" },
     { label: "  rubydex (subtotal)", value: "2" },
     { label: "    codebase_stats", value: "2" },
     { label: "  execute", value: "1" },
     { label: "  grep", value: "1" },
+    { label: "  posh (subtotal)", value: "1" },
+    { label: "    posh_search", value: "1" },
   ])
   assert.doesNotMatch(JSON.stringify(history.get("a")!.messages.map((message) => message.tools)), /private|input|output|metadata|status/)
 
@@ -128,16 +133,16 @@ test("tool events read the updated cache and drive sidebar counts through produc
   })] })]
   bus.emit(progress)
   await flushEvents()
-  assert.equal(view.rows()[5].value, "4")
+  assert.equal(view.rows()[5].value, "5")
   cached = []
   bus.emit(progress)
   await flushEvents()
-  assert.equal(view.rows()[5].value, "4")
+  assert.equal(view.rows()[5].value, "5")
   stopEvents()
   cached = [assistant("msg_004", { content: [tool("call-c", "shell")] })]
   bus.emit(progress)
   await flushEvents()
-  assert.equal(view.rows()[5].value, "4")
+  assert.equal(view.rows()[5].value, "5")
 })
 
 test("undo, reconnect, deletion, and cleanup use the same production subscriptions", async (t) => {
