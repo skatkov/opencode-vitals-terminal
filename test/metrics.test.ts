@@ -1,13 +1,15 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import type { SessionMessageInfo } from "@opencode/client"
+import type { JsonValue, SessionMessageInfo } from "@opencode/client"
 import { calculateVitals, mergeMessages, projectMessages, tokenTotal } from "../src/metrics.ts"
-import { assistant, usage, user } from "./fixtures.ts"
+import { assistant, tool, usage, user } from "./fixtures.ts"
 
 test("empty sessions have honest zeros and no context estimate", () => {
   const value = calculateVitals([])
   assert.equal(value.turns, 0)
   assert.equal(value.steps, 0)
+  assert.equal(value.toolCalls, 0)
+  assert.deepEqual(value.tools, [])
   assert.equal(value.totalTokens, 0)
   assert.equal(value.context, undefined)
 })
@@ -114,13 +116,217 @@ test("staged undo excludes messages at and after the boundary, even if the bound
 })
 
 test("metric projections discard prompt text, response content, and tool output", () => {
-  const message = assistant()
+  const call = tool("call-a", "read", {
+    state: {
+      status: "completed", input: { path: "Private path that must not be retained" },
+      content: [{ type: "text", text: "Tool output that must not be retained" }],
+      metadata: { private: "Metadata that must not be retained" },
+    },
+  })
+  const message = assistant("msg_002", { content: [...assistant().content, call] })
   const projected = projectMessages([user(), message])
   assert.equal(JSON.stringify(projected).includes("must not be retained"), false)
   assert.equal("content" in projected[1], false)
   assert.equal("text" in projected[0], false)
+  assert.deepEqual(projected[1].tools, [{ id: "call-a", name: "read" }])
+  call.name = "changed"
+  assert.equal(projected[1].tools![0].name, "read")
   message.tokens!.cache.read = 999
   assert.equal(projected[1].tokens!.cache.read, 50)
+})
+
+test("tools count running, completed, failed, and provider-executed calls but not streamed inputs", () => {
+  const value = calculateVitals(projectMessages([assistant("msg_002", {
+    tokens: undefined,
+    time: { created: 2 },
+    content: [
+      tool("call-a", "read"),
+      tool("call-b", "read", { state: { status: "completed", input: {}, content: [{ type: "text", text: "private" }] } }),
+      tool("call-c", "grep", { state: { status: "error", input: {}, error: { type: "tool.execution", message: "failed" } } }),
+      tool("call-d", "websearch", { executed: true }),
+      tool("call-e", "shell", { state: { status: "streaming", input: "partial" } }),
+      { type: "reasoning", text: "private", time: { created: 2 } },
+      { type: "text", text: "private" },
+    ],
+  })]))
+  assert.equal(value.steps, 1)
+  assert.equal(value.completedSteps, 0)
+  assert.equal(value.totalTokens, 0)
+  assert.equal(value.toolCalls, 4)
+  assert.deepEqual(value.tools, [
+    { name: "read", calls: 2 },
+    { name: "grep", calls: 1 },
+    { name: "websearch", calls: 1 },
+  ])
+})
+
+test("tool breakdown sorts by frequency then name and preserves exact MCP names", () => {
+  const value = calculateVitals(projectMessages([assistant("msg_002", { content: [
+    tool("call-a", "zebra"),
+    tool("call-b", "mcp.server.search"),
+    tool("call-c", "mcp.server.search"),
+    tool("call-d", "mcp.server.search"),
+    tool("call-e", "__proto__"),
+    tool("call-f", "zebra"),
+    tool("call-g", "alpha"),
+  ] })]))
+  assert.equal(value.toolCalls, 7)
+  assert.deepEqual(value.tools, [
+    { name: "mcp.server.search", calls: 3 },
+    { name: "zebra", calls: 2 },
+    { name: "__proto__", calls: 1 },
+    { name: "alpha", calls: 1 },
+  ])
+})
+
+test("Code Mode metadata exposes running, completed, and failed nested calls without retaining inputs or outputs", () => {
+  const calls: Record<string, JsonValue>[] = [
+    { tool: "rubydex.get_declaration", status: "running", input: { name: "PrivateClass" } },
+    { tool: "rubydex.get_declaration", status: "completed", input: { name: "OtherPrivateClass" }, output: "private result" },
+    { tool: "posh.posh_search", status: "error", input: { query: "private query" } },
+  ]
+  const projected = projectMessages([assistant("msg_002", { content: [tool("call-a", "execute", {
+    state: { status: "running", input: { code: "Private code" }, metadata: { toolCalls: calls } },
+  })] })])
+  assert.deepEqual(projected[0].tools, [
+    { id: "call-a", name: "execute" },
+    { id: "call-a", name: "rubydex.get_declaration", index: 0 },
+    { id: "call-a", name: "rubydex.get_declaration", index: 1 },
+    { id: "call-a", name: "posh.posh_search", index: 2 },
+  ])
+  const value = calculateVitals(projected)
+  assert.equal(value.toolCalls, 4)
+  assert.deepEqual(value.tools, [
+    { name: "rubydex.get_declaration", calls: 2 },
+    { name: "execute", calls: 1 },
+    { name: "posh.posh_search", calls: 1 },
+  ])
+  const serialized = JSON.stringify(projected[0].tools)
+  assert.doesNotMatch(serialized, /Private|private|input|output|metadata|status/)
+  calls[0].tool = "changed"
+  assert.equal(projected[0].tools![1].name, "rubydex.get_declaration")
+})
+
+test("missing or malformed Code Mode traces never invent nested calls", () => {
+  for (const toolCalls of [null, false, 42, "rubydex.get_declaration", {}] as JsonValue[]) {
+    const value = calculateVitals(projectMessages([assistant("msg_002", { content: [tool("call-a", "execute", {
+      state: { status: "running", input: {}, metadata: { toolCalls } },
+    })] })]))
+    assert.deepEqual(value.tools, [{ name: "execute", calls: 1 }])
+  }
+  const value = calculateVitals(projectMessages([assistant("msg_002", { content: [
+    tool("call-a", "execute"),
+    tool("call-b", "execute", { state: { status: "completed", input: {}, content: [{ type: "text", text: "done" }] } }),
+    tool("call-c", "execute", { state: { status: "running", input: {}, metadata: { toolCalls: [] } } }),
+  ] })]))
+  assert.equal(value.toolCalls, 3)
+  assert.deepEqual(value.tools, [{ name: "execute", calls: 3 }])
+})
+
+test("malformed nested records are skipped without changing valid calls' trace indexes", () => {
+  const calls: JsonValue[] = [null, false, 1, "not a record", [], {}, { tool: null }, { tool: 42 }, { tool: "" },
+    { tool: "rubydex.codebase_stats", status: "completed" }]
+  const projected = projectMessages([assistant("msg_002", { content: [tool("call-a", "execute", {
+    state: { status: "running", input: {}, metadata: { toolCalls: calls } },
+  })] })])
+  assert.deepEqual(projected[0].tools, [
+    { id: "call-a", name: "execute" },
+    { id: "call-a", name: "rubydex.codebase_stats", index: 9 },
+  ])
+  assert.equal(calculateVitals(projected).toolCalls, 2)
+})
+
+test("other tools' metadata is not interpreted as a Code Mode trace", () => {
+  const value = calculateVitals(projectMessages([assistant("msg_002", { content: [tool("call-a", "read", {
+    state: { status: "running", input: {}, metadata: { toolCalls: [{ tool: "not-an-invocation" }] } },
+  })] })]))
+  assert.deepEqual(value.tools, [{ name: "read", calls: 1 }])
+})
+
+test("nested calls deduplicate across growing, finalized, repeated, and stale traces", () => {
+  const snapshot = (calls: JsonValue[]) => projectMessages([assistant("msg_002", { content: [tool("call-a", "execute", {
+    state: { status: "running", input: {}, metadata: { toolCalls: calls } },
+  })] })])
+  const first = snapshot([{ tool: "rubydex.codebase_stats", status: "running" }])
+  const live = snapshot([
+    { tool: "rubydex.codebase_stats", status: "completed" },
+    { tool: "rubydex.codebase_stats", status: "running" },
+  ])
+  const merged = mergeMessages(first, live, live, first)
+  assert.equal(merged[0].tools!.length, 3)
+  const value = calculateVitals(merged)
+  assert.equal(value.toolCalls, 3)
+  assert.deepEqual(value.tools, [{ name: "rubydex.codebase_stats", calls: 2 }, { name: "execute", calls: 1 }])
+  assert.equal(calculateVitals(merged, [], "msg_002").toolCalls, 0)
+})
+
+test("nested trace indexes cannot collide with top-level tool IDs", () => {
+  const messages = projectMessages([assistant("msg_002", { content: [
+    tool("call-a", "execute", { state: { status: "running", input: {}, metadata: { toolCalls: [{ tool: "rubydex.codebase_stats" }] } } }),
+    tool("call-a:0", "read"),
+  ] })])
+  for (const projected of [messages, mergeMessages(messages, messages)]) {
+    const value = calculateVitals(projected)
+    assert.equal(value.toolCalls, 3)
+    assert.deepEqual(value.tools, [{ name: "execute", calls: 1 }, { name: "read", calls: 1 }, { name: "rubydex.codebase_stats", calls: 1 }])
+  }
+})
+
+test("tool IDs deduplicate within a step, not across separate model steps", () => {
+  const value = calculateVitals(projectMessages([
+    assistant("msg_002", { content: [tool("same-id", "read"), tool("same-id", "read")] }),
+    assistant("msg_003", { content: [tool("same-id", "read")] }),
+  ]))
+  assert.equal(value.toolCalls, 2)
+  assert.deepEqual(value.tools, [{ name: "read", calls: 2 }])
+})
+
+test("overlapping history and live tool snapshots count each call once", () => {
+  const history = projectMessages([assistant("msg_002", { content: [tool("call-a", "read")] })])
+  const live = projectMessages([assistant("msg_002", { content: [tool("call-a", "read"), tool("call-b", "grep")] })])
+  const merged = mergeMessages(history, live, live)
+  assert.deepEqual(merged[0].tools, [{ id: "call-a", name: "read" }, { id: "call-b", name: "grep" }])
+  assert.equal(calculateVitals(merged).toolCalls, 2)
+})
+
+test("stale and streaming snapshots cannot erase previously called tools", () => {
+  const history = projectMessages([assistant("msg_002", { content: [tool("call-a", "read")] })])
+  for (const stale of [
+    projectMessages([assistant("msg_002", { content: [] })]),
+    projectMessages([assistant("msg_002", { content: [tool("call-a", "read", { state: { status: "streaming", input: "partial" } })] })]),
+    [{ id: "msg_002", type: "assistant" } as const],
+  ]) {
+    const value = calculateVitals(mergeMessages(history, stale))
+    assert.equal(value.toolCalls, 1)
+    assert.deepEqual(value.tools, [{ name: "read", calls: 1 }])
+  }
+})
+
+test("a called tool replaces its old name for the same ID rather than creating another call", () => {
+  const value = calculateVitals(mergeMessages(
+    projectMessages([assistant("msg_002", { content: [tool("call-a", "old-name")] })]),
+    projectMessages([assistant("msg_002", { content: [tool("call-a", "read")] })]),
+  ))
+  assert.equal(value.toolCalls, 1)
+  assert.deepEqual(value.tools, [{ name: "read", calls: 1 }])
+})
+
+test("undo excludes reverted tools and compaction preserves earlier tool counts", () => {
+  const messages = projectMessages([
+    assistant("msg_002", { content: [tool("call-a", "read")] }),
+    { id: "msg_003", type: "compaction", status: "completed", reason: "auto", summary: "", recent: "", time: { created: 3 } },
+    user("msg_004"),
+    assistant("msg_005", { content: [tool("call-b", "grep")] }),
+  ])
+  assert.equal(calculateVitals(messages).toolCalls, 2)
+  assert.deepEqual(calculateVitals(messages, [], "msg_004").tools, [{ name: "read", calls: 1 }])
+  assert.equal(calculateVitals(messages, [], "msg_002").toolCalls, 0)
+})
+
+test("non-assistant messages cannot contribute tools", () => {
+  const value = calculateVitals([{ id: "msg_001", type: "user", tools: [{ id: "call-a", name: "read" }] }])
+  assert.equal(value.toolCalls, 0)
+  assert.deepEqual(value.tools, [])
 })
 
 test("compaction metadata is projected only for compactions and reflects their status", () => {

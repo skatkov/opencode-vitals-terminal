@@ -1,4 +1,4 @@
-import type { SessionMessageAssistant, SessionMessageInfo, TokenUsageInfo } from "@opencode/client"
+import type { SessionMessageAssistant, SessionMessageAssistantTool, SessionMessageInfo, TokenUsageInfo } from "@opencode/client"
 import { calculateVitals, projectMessages } from "../src/metrics.ts"
 
 export const usage: TokenUsageInfo = { input: 100, output: 20, reasoning: 10, cache: { read: 50, write: 5 } }
@@ -16,6 +16,17 @@ export function assistant(id = "msg_002", changes: Partial<SessionMessageAssista
     content: [{ type: "text", text: "A response that must not be retained" }],
     time: { created: 2, completed: 3 },
     tokens: { ...usage, cache: { ...usage.cache } },
+    ...changes,
+  }
+}
+
+export function tool(id: string, name: string, changes: Partial<SessionMessageAssistantTool> = {}): SessionMessageAssistantTool {
+  return {
+    type: "tool",
+    id,
+    name,
+    state: { status: "running", input: {}, metadata: {} },
+    time: { created: 2, ran: 3 },
     ...changes,
   }
 }
