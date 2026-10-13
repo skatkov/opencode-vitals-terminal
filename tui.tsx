@@ -2,26 +2,12 @@ import { Plugin } from "@opencode/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 import { formatCost } from "./src/format.ts"
+import { subscribeHistoryEvents } from "./src/history-events.ts"
 import { calculateVitals, mergeMessages, projectMessages } from "./src/metrics.ts"
 import { SidebarStore } from "./src/sidebar.ts"
 import { HistoryStore } from "./src/store.ts"
 import { VitalsStore } from "./src/vitals-store.ts"
 import { createFooterSummary, createSidebarRows } from "./src/vitals-views.ts"
-
-const updates = [
-  "session.inbox.delivered",
-  "session.step.started",
-  "session.step.ended",
-  "session.step.failed",
-  "session.tool.called",
-  "session.tool.progress",
-  "session.tool.success",
-  "session.tool.failed",
-  "session.execution.succeeded",
-  "session.execution.failed",
-  "session.execution.interrupted",
-  "session.compaction.ended",
-] as const
 
 export default Plugin.define({
   id: "opencode-vitals-terminal",
@@ -114,13 +100,7 @@ export default Plugin.define({
       ],
     }))
 
-    const stopEvents = [
-      context.data.on("server.connected", () => history.reconnect()),
-      context.data.on("session.deleted", (event) => history.forget(event.data.sessionID)),
-      context.data.on("session.revert.committed", (event) => queueMicrotask(() => history.truncate(event.data.sessionID, event.data.to))),
-      ...updates.map((type) => context.data.on(type, (event) =>
-        queueMicrotask(() => history.update(event.data.sessionID)))),
-    ]
+    const stopEvents = subscribeHistoryEvents(context.data, history)
 
     const stopFooter = context.ui.slot({
       // Disable only opencode.prompt.footer in cli.json. Appending here keeps
@@ -208,7 +188,7 @@ export default Plugin.define({
     })
 
     return () => {
-      for (const stop of stopEvents) stop()
+      stopEvents()
       stopFooter()
       stopSidebar()
       history.dispose()
