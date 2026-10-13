@@ -16,11 +16,8 @@ export function toolBreakdown(tools: readonly ToolCount[]): { label: string; cal
       continue
     }
     const name = tool.name.slice(0, separator)
-    let group = groups.get(name)
-    if (!group) {
-      group = { name, calls: 0, children: [] }
-      groups.set(name, group)
-    }
+    const group: ToolSubtotal = groups.get(name) ?? { name, calls: 0, children: [] }
+    groups.set(name, group)
     group.calls += tool.calls
     group.children.push({ name: tool.name.slice(separator + 1), calls: tool.calls })
   }
